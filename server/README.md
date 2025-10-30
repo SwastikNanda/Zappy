@@ -1,4 +1,4 @@
-# Kahoot-style Game Server (Express + Socket.IO)
+# Zappy Server (Express + Socket.IO)
 
 ## Env
 - `MONGO_URI` (e.g. mongodb://localhost:27017/kahoot_clone)
