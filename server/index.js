@@ -10,7 +10,6 @@ import authRoutes from "./src/routes/auth.js"
 import quizRoutes from "./src/routes/quizzes.js"
 import sessionRoutes from "./src/routes/session.js"
 dotenv.config();
-
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -40,6 +39,5 @@ mongoose.connect(process.env.MONGO_URI)
 app.get("/", (req, res) => res.json({ status: "ok", service: "kahoot-clone-server" }));
 
 initGameSockets(io);
-
 const PORT = process.env.PORT || 5100;
 server.listen(PORT, () => console.log("🚀 Server listening on port", PORT));
