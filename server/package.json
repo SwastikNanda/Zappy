@@ -1,5 +1,5 @@
 {
-  "name": "kahoot-clone-server",
+  "name": "zappy-server",
   "version": "1.0.0",
   "type": "module",
   "main": "index.js",
@@ -13,7 +13,6 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
-    "mongodb": "^6.20.0",
     "mongoose": "^7.5.0",
     "socket.io": "^4.7.2"
   },
