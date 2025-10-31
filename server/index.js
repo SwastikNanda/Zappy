@@ -36,7 +36,7 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected client origin:", process.env.CLIENT_ORIGIN))
   .catch(err => console.error("❌ Mongo error:", err.message));
 
-app.get("/", (req, res) => res.json({ status: "ok", service: "kahoot-clone-server" }));
+app.get("/", (req, res) => res.json({ status: "ok", service: "zappy-server" }));
 
 initGameSockets(io);
 const PORT = process.env.PORT || 5100;

@@ -1,17 +1,15 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+
 const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
+  name: { type: String },
   email: { type: String, required: true, unique: true, index: true },
   passwordHash: { type: String, required: true },
-  role: { type: String,enum: ["player", "admin", "host"], default : "player" }
+  role: { type: String, enum: ["player", "admin", "host"], default: "player" }
 }, { timestamps: true });
-userSchema.pre("save", async function(next) {
-  if (!this.isModified("password")) return next();
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
-});
+
 userSchema.methods.matchPassword = async function(password) {
-  return await bcrypt.compare(password, this.password);
+  return await bcrypt.compare(password, this.passwordHash);
 };
+
 export default mongoose.model("User", userSchema);
