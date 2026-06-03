@@ -128,6 +128,39 @@ router.get("/:id", authMiddleware, async (req, res) => {
 });
 
 /**
+ * UPDATE QUIZ
+ */
+router.put("/:id", authMiddleware, async (req, res) => {
+  try {
+    const { title, description, questions } = req.body;
+
+    const quiz = await Quiz.findOne({
+      _id: req.params.id,
+      ownerId: req.user.id,
+    });
+
+    if (!quiz) {
+      return res.status(404).json({ message: "Quiz not found" });
+    }
+
+    if (title !== undefined) quiz.title = title;
+    if (description !== undefined) quiz.description = description;
+    if (questions !== undefined) {
+      if (!questions.length) {
+        return res.status(400).json({ message: "Quiz must have questions" });
+      }
+      quiz.questions = questions;
+    }
+
+    await quiz.save();
+    res.json(quiz);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * DELETE QUIZ
  */
 router.delete("/:id", authMiddleware, async (req, res) => {

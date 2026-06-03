@@ -77,7 +77,7 @@
 //   );
 // }
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Card, TextField, Button, Typography } from "@mui/material";
 import { Login } from "@mui/icons-material";
@@ -97,6 +97,17 @@ export default function JoinGame() {
   // Random floating emojis (you can customize them)
   const emojis = ["⚡", "🎯", "🎉", "🔥", "💡", "🧠", "🎵", "⭐", "🎮", "🥳","⚡", "🎯", "🎉", "🔥", "💡", "🧠", "🎵", "⭐", "🎮", "🥳"];
 
+  // Memoize random positions so they don't change on every re-render
+  const emojiPositions = useMemo(() =>
+    emojis.map(() => ({
+      top: `${Math.random() * 90}vh`,
+      left: `${Math.random() * 90}vw`,
+      opacity: 0.15 + Math.random() * 0.3,
+      delay: Math.random() * 2,
+      duration: 5 + Math.random() * 3,
+    })), []
+  );
+
   return (
     <Box
       className="flex flex-col items-center justify-center min-h-screen relative overflow-hidden"
@@ -110,9 +121,9 @@ export default function JoinGame() {
           key={i}
           className="absolute text-5xl select-none"
           style={{
-            top: `${Math.random() * 90}vh`,
-            left: `${Math.random() * 90}vw`,
-            opacity: 0.15 + Math.random() * 0.3,
+            top: emojiPositions[i].top,
+            left: emojiPositions[i].left,
+            opacity: emojiPositions[i].opacity,
           }}
           animate={{
             y: [0, -25, 0],
@@ -120,10 +131,10 @@ export default function JoinGame() {
             rotate: [0, 10, -10, 0],
           }}
           transition={{
-            duration: 5 + Math.random() * 3,
+            duration: emojiPositions[i].duration,
             repeat: Infinity,
             ease: "easeInOut",
-            delay: Math.random() * 2,
+            delay: emojiPositions[i].delay,
           }}
         >
           {emoji}

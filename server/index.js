@@ -13,15 +13,20 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+
+const allowedOrigins = process.env.CLIENT_ORIGIN
+  ? process.env.CLIENT_ORIGIN.split(",").map(o => o.trim())
+  : ["http://localhost:5174"];
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_ORIGIN,
+    origin: allowedOrigins,
     credentials: true
   }
 });
 
 app.use(cors({
-  origin: process.env.CLIENT_ORIGIN ,
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json());
@@ -34,7 +39,7 @@ app.use("/api/quizzes", quizRoutes);
 app.use("/api/sessions", sessionRoutes);
 
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB connected client origin:", process.env.CLIENT_ORIGIN))
+  .then(() => console.log("✅ MongoDB connected"))
   .catch(err => console.error("❌ Mongo error:", err.message));
 
 app.get("/", (req, res) => res.json({ status: "ok", service: "kahoot-clone-server" }));

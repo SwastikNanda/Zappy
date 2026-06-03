@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
 import { io } from "socket.io-client";
 
+const SOCKET_URL = import.meta.env.VITE_API_URL || "http://localhost:5100";
+
 export function useSocket() {
   const socketRef = useRef(null);
   if (!socketRef.current) {
-    socketRef.current = io("http://localhost:5100", { withCredentials: true });
+    socketRef.current = io(SOCKET_URL, { withCredentials: true });
   }
   useEffect(() => {
     const s = socketRef.current;

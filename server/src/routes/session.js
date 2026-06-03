@@ -6,7 +6,8 @@ import { authMiddleware } from "../middleware/auth.js";
 const router = express.Router();
 router.post("/", authMiddleware, async (req, res) => {
   try {
-    if (req.user.role !== "host" && req.user.role !== "admin") {
+    const userRole = req.user.role || "player";
+    if (userRole !== "host" && userRole !== "admin") {
       return res.status(403).json({ message: "Only host/admin can start sessions" });
     }
 
