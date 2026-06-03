@@ -111,14 +111,15 @@ socket.on("host:create_room", async ({ quizId }) => {
       const q = room.quiz.questions[room.currentQ];
       const player = room.players.get(socket.id);
       if (!player || player.answered) return;
-      player.answered = true;
-      player.lastAnswer = playerAnswers;
-      const timeLeftMs = Math.max(0, room.endsAt - Date.now());
 
       // Ensure choiceIndices is always an array of numbers
       const playerAnswers = Array.isArray(choiceIndices) 
         ? choiceIndices.map(Number).sort((a, b) => a - b)
         : [Number(choiceIndices)];
+
+      player.answered = true;
+      player.lastAnswer = playerAnswers;
+      const timeLeftMs = Math.max(0, room.endsAt - Date.now());
 
       let correct = false;
       let scoreEarned = 0;
