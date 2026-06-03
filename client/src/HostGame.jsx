@@ -1262,6 +1262,12 @@ export default function HostGame() {
   const [players, setPlayers] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [activeTab, setActiveTab] = useState("create"); // create | saved
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [questionEnded, setQuestionEnded] = useState(false);
+  const [answerDistribution, setAnswerDistribution] = useState([]);
+  const [correctIndices, setCorrectIndices] = useState([]);
+  const [totalAnswered, setTotalAnswered] = useState(0);
+  const [gameOver, setGameOver] = useState(false);
   const navigate = useNavigate();
   const roomLink = `${window.location.origin}/play/${roomCode}`;
 
@@ -1292,6 +1298,24 @@ function createRoom(quizId) {
     socket.on("leaderboard:update", ({ leaderboard }) =>
       setLeaderboard(leaderboard)
     );
+    socket.on("question:start", ({ questionNumber, totalQuestions, text, choices }) => {
+      setCurrentQuestion({ questionNumber, totalQuestions, text, choices });
+      setQuestionEnded(false);
+      setAnswerDistribution([]);
+      setCorrectIndices([]);
+    });
+    socket.on("question:end", ({ correctIndices, leaderboard, answerDistribution, totalAnswered }) => {
+      setQuestionEnded(true);
+      setAnswerDistribution(answerDistribution || []);
+      setCorrectIndices(correctIndices || []);
+      setTotalAnswered(totalAnswered || 0);
+      if (leaderboard) setLeaderboard(leaderboard);
+    });
+    socket.on("game:over", ({ leaderboard }) => {
+      setLeaderboard(leaderboard);
+      setGameOver(true);
+      setCurrentQuestion(null);
+    });
   }
 
   function nextQuestion() {
@@ -1416,30 +1440,118 @@ function createRoom(quizId) {
               Share this code with players to join the fun 🎮
             </Typography>
 
+            {/* Current Question Indicator */}
+            {currentQuestion && (
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 700,
+                    color: "#FDE68A",
+                    mb: 1,
+                  }}
+                >
+                  📋 Question {currentQuestion.questionNumber} of {currentQuestion.totalQuestions}
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: "#e0d6f0",
+                    fontStyle: "italic",
+                    px: 2,
+                  }}
+                  dangerouslySetInnerHTML={{ __html: currentQuestion.text }}
+                />
+              </Box>
+            )}
+
+            {/* Answer Distribution (shown after question ends) */}
+            {questionEnded && answerDistribution.length > 0 && (
+              <Box sx={{ mb: 3, textAlign: "left", px: 2 }}>
+                <Divider sx={{ mb: 2, borderColor: "rgba(255,255,255,0.2)" }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#F9A8D4", mb: 1 }}>
+                  📊 Answer Distribution ({totalAnswered} answered)
+                </Typography>
+                {answerDistribution.map((item) => {
+                  const isCorrect = correctIndices.includes(item.choiceIndex);
+                  return (
+                    <Box key={item.choiceIndex} sx={{ mb: 1.5 }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: isCorrect ? "#4ade80" : "#e0d6f0",
+                            fontWeight: isCorrect ? 700 : 400,
+                          }}
+                        >
+                          {isCorrect ? "✅ " : ""}{item.choiceText}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "#C084FC", fontWeight: 600 }}>
+                          {item.percentage}% ({item.count})
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          width: "100%",
+                          height: "10px",
+                          borderRadius: "5px",
+                          background: "rgba(255,255,255,0.1)",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${item.percentage}%` }}
+                          transition={{ duration: 0.6, ease: "easeOut" }}
+                          style={{
+                            height: "100%",
+                            borderRadius: "5px",
+                            background: isCorrect
+                              ? "linear-gradient(90deg, #4ade80, #22c55e)"
+                              : "linear-gradient(90deg, #C084FC, #F9A8D4)",
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                  );
+                })}
+                <Divider sx={{ mt: 2, borderColor: "rgba(255,255,255,0.2)" }} />
+              </Box>
+            )}
+
+            {/* Game Over */}
+            {gameOver && (
+              <Typography variant="h5" sx={{ color: "#FDE68A", fontWeight: 700, mb: 2 }}>
+                🎉 Game Over!
+              </Typography>
+            )}
+
             <ul style={{ color: "#020202ff", listStyle: "none", padding: 0 }}>
               {players.map((p, i) => (
                 <li key={i}>{p.name}</li>
               ))}
             </ul>
 
-            <Button
-              variant="contained"
-              onClick={nextQuestion}
-              sx={{
-                mt: 3,
-                py: 1.4,
-                borderRadius: "12px",
-                background:
-                  "linear-gradient(90deg,#FDE68A,#F9A8D4,#C084FC)",
-                color: "#333",
-                "&:hover": {
-                  transform: "scale(1.05)",
-                  boxShadow: "0 0 30px rgba(255,215,0,0.4)",
-                },
-              }}
-            >
-              Start / Next Question
-            </Button>
+            {!gameOver && (
+              <Button
+                variant="contained"
+                onClick={nextQuestion}
+                sx={{
+                  mt: 3,
+                  py: 1.4,
+                  borderRadius: "12px",
+                  background:
+                    "linear-gradient(90deg,#FDE68A,#F9A8D4,#C084FC)",
+                  color: "#333",
+                  "&:hover": {
+                    transform: "scale(1.05)",
+                    boxShadow: "0 0 30px rgba(255,215,0,0.4)",
+                  },
+                }}
+              >
+                {currentQuestion ? "Next Question ➡️" : "Start Game 🚀"}
+              </Button>
+            )}
           </Card>
         </motion.div>
       </Box>

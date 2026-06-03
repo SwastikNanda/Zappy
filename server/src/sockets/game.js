@@ -82,21 +82,27 @@ socket.on("host:create_room", async ({ quizId }) => {
         return;
       }
       const q = room.quiz.questions[room.currentQ];
-      for (const p of room.players.values()) p.answered = false;
+      for (const p of room.players.values()) {
+        p.answered = false;
+        p.lastAnswer = [];
+      }
       const now = Date.now();
       room.endsAt = now + (q.timeLimitSec || 20) * 1000;
       
       // Determine if it's a multiple-answer question
-      const hasMultipleAnswers = q.correctIndices && q.correctIndices.length > 1; 
+      const hasMultipleAnswers = q.correctIndices && q.correctIndices.length > 1;
+      const questionIndex = room.currentQ;
 
       io.to(roomCode).emit("question:start", {
         index: room.currentQ,
+        questionNumber: room.currentQ + 1,
+        totalQuestions: room.quiz.questions.length,
         text: q.text,
         choices: q.choices,
         endsAt: room.endsAt,
         hasMultipleAnswers
       });
-      setTimeout(() => endQuestion(io, roomCode), (q.timeLimitSec || 20) * 1000 + 200);
+      setTimeout(() => endQuestion(io, roomCode, questionIndex), (q.timeLimitSec || 20) * 1000 + 200);
     });
 
     socket.on("player:answer", ({ roomCode, choiceIndices }) => {
@@ -106,6 +112,7 @@ socket.on("host:create_room", async ({ quizId }) => {
       const player = room.players.get(socket.id);
       if (!player || player.answered) return;
       player.answered = true;
+      player.lastAnswer = playerAnswers;
       const timeLeftMs = Math.max(0, room.endsAt - Date.now());
 
       // Ensure choiceIndices is always an array of numbers
@@ -159,11 +166,41 @@ io.to(roomCode).emit("leaderboard:update", { leaderboard });
   });
 }
 
-function endQuestion(io, roomCode) {
+function endQuestion(io, roomCode, expectedIndex) {
   const room = rooms.get(roomCode);
   if (!room) return;
+  // Guard against stale timers
+  if (expectedIndex !== undefined && room.currentQ !== expectedIndex) return;
   const q = room.quiz.questions[room.currentQ];
-  io.to(roomCode).emit("question:end", { correctIndices: q.correctIndices, leaderboard: makeLeaderboard(room) });
+  
+  // Compute answer distribution
+  const totalPlayers = room.players.size;
+  let totalAnswered = 0;
+  const counts = new Array(q.choices.length).fill(0);
+  for (const p of room.players.values()) {
+    if (p.answered) {
+      totalAnswered++;
+      if (Array.isArray(p.lastAnswer)) {
+        for (const idx of p.lastAnswer) {
+          if (idx >= 0 && idx < q.choices.length) counts[idx]++;
+        }
+      }
+    }
+  }
+  const answerDistribution = q.choices.map((choice, i) => ({
+    choiceIndex: i,
+    choiceText: choice,
+    count: counts[i],
+    percentage: totalAnswered > 0 ? Math.round((counts[i] / totalAnswered) * 100) : 0
+  }));
+
+  io.to(roomCode).emit("question:end", {
+    correctIndices: q.correctIndices,
+    leaderboard: makeLeaderboard(room),
+    answerDistribution,
+    totalPlayers,
+    totalAnswered
+  });
 }
 
 function makeLeaderboard(room) {
