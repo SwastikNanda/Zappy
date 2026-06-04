@@ -1497,6 +1497,7 @@ export default function QuizEditor({ onSave }: QuizEditorProps) {
             name="title"
             value={quizDetails.title}
             onChange={handleDetailsChange}
+            className="border-gray-300 shadow-sm shadow-purple-200/50 focus:border-purple-400"
           />
         </div>
         <div className="mb-4">
@@ -1507,6 +1508,7 @@ export default function QuizEditor({ onSave }: QuizEditorProps) {
             name="description"
             value={quizDetails.description}
             onChange={handleDetailsChange}
+            className="border-gray-300 shadow-sm shadow-purple-200/50 focus:border-purple-400"
           />
         </div>
 
@@ -1539,6 +1541,7 @@ export default function QuizEditor({ onSave }: QuizEditorProps) {
             max={180}
             value={currentQuestion.timeLimitSec}
             onChange={handleTimeChange}
+            className="border-gray-300 shadow-sm shadow-purple-200/50 focus:border-purple-400"
           />
         </div>
 
@@ -1554,6 +1557,7 @@ export default function QuizEditor({ onSave }: QuizEditorProps) {
                 placeholder={`Option ${i + 1}`}
                 value={choice}
                 onChange={(e) => handleChoiceChange(i, e.target.value)}
+                className="border-gray-300 shadow-sm shadow-purple-200/50 focus:border-purple-400"
               />
             </div>
           ))}
