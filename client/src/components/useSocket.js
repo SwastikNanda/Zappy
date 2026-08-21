@@ -1,11 +1,11 @@
 import { io } from "socket.io-client";
 import { useEffect, useRef } from "react";
-const URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:5100";
+const URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || "http://localhost:5100";
 let socketSingleton = null;
 export function useSocket() {
   const ref = useRef(null);
   if (!socketSingleton) {
-    socketSingleton = io(URL, { transports: ["websocket"] });
+    socketSingleton = io(URL, { withCredentials: true });
   }
   ref.current = socketSingleton;
   useEffect(() => {

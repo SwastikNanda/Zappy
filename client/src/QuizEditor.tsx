@@ -1353,13 +1353,33 @@
 //   );
 // }
 
-import React, { useState } from "react";
-import { Editor } from "@tinymce/tinymce-react";
+import React, { useState, useEffect } from "react";
+import ReactQuill from "react-quill-new";
+import "react-quill-new/dist/quill.snow.css";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Card } from "./components/ui/card";
 import { Checkbox } from "./components/ui/checkbox";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Pencil } from "lucide-react";
+
+/* ================= EDITOR CONFIG ================= */
+
+const quillModules = {
+  toolbar: [
+    [{ header: [1, 2, 3, false] }],
+    ["bold", "italic", "underline", "strike"],
+    [{ list: "ordered" }, { list: "bullet" }],
+    [{ align: [] }],
+    ["link", "image"],
+    ["clean"],
+  ],
+};
+
+// Quill represents an empty document as "<p><br></p>"; treat that as blank
+const isEmptyHtml = (html: string) => {
+  if (!html) return true;
+  return html.replace(/<(.|\n)*?>/g, "").replace(/&nbsp;/g, "").trim() === "";
+};
 
 /* ================= TYPES ================= */
 
@@ -1370,25 +1390,51 @@ export interface Question {
   timeLimitSec: number;
 }
 
+export interface QuizData {
+  _id?: string;
+  title: string;
+  description: string;
+  questions: Question[];
+}
+
 interface QuizEditorProps {
   onSave: (quizData: { title: string, description: string, questions: Question[] }) => void;
+  onSaveOnly?: (quizData: { title: string, description: string, questions: Question[] }) => void;
+  initialQuiz?: QuizData | null;
 }
 
 /* ================= COMPONENT ================= */
 
-export default function QuizEditor({ onSave }: QuizEditorProps) {
-  const [questions, setQuestions] = useState<Question[]>([]);
+const EMPTY_QUESTION: Question = {
+  text: "",
+  choices: ["", "", "", ""],
+  correctIndices: [],
+  timeLimitSec: 15,
+};
+
+export default function QuizEditor({ onSave, onSaveOnly, initialQuiz }: QuizEditorProps) {
+  const isEditing = !!initialQuiz;
+  const [questions, setQuestions] = useState<Question[]>(initialQuiz?.questions ?? []);
   const [quizDetails, setQuizDetails] = useState({
-    title: "",
-    description: "",
+    title: initialQuiz?.title ?? "",
+    description: initialQuiz?.description ?? "",
   });
 
-  const [currentQuestion, setCurrentQuestion] = useState<Question>({
-    text: "",
-    choices: ["", "", "", ""],
-    correctIndices: [],
-    timeLimitSec: 15,
-  });
+  const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...EMPTY_QUESTION });
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  // Re-populate the form when a saved quiz is loaded for editing
+  useEffect(() => {
+    if (initialQuiz) {
+      setQuizDetails({
+        title: initialQuiz.title || "",
+        description: initialQuiz.description || "",
+      });
+      setQuestions(initialQuiz.questions || []);
+      setCurrentQuestion({ ...EMPTY_QUESTION, choices: ["", "", "", ""] });
+      setEditingIndex(null);
+    }
+  }, [initialQuiz]);
 
   /* ================= HANDLERS ================= */
 
@@ -1437,7 +1483,7 @@ export default function QuizEditor({ onSave }: QuizEditorProps) {
 
   const addQuestion = () => {
     if (
-      !currentQuestion.text ||
+      isEmptyHtml(currentQuestion.text) ||
       currentQuestion.choices.some((c) => !c.trim()) ||
       currentQuestion.correctIndices.length === 0
     ) {
@@ -1445,39 +1491,87 @@ export default function QuizEditor({ onSave }: QuizEditorProps) {
       return;
     }
 
-    setQuestions((prev) => [...prev, currentQuestion]);
+    if (editingIndex !== null) {
+      // Replace the question being edited
+      setQuestions((prev) =>
+        prev.map((q, i) => (i === editingIndex ? currentQuestion : q))
+      );
+      setEditingIndex(null);
+    } else {
+      setQuestions((prev) => [...prev, currentQuestion]);
+    }
 
+    setCurrentQuestion({ ...EMPTY_QUESTION, choices: ["", "", "", ""] });
+  };
+
+  const editQuestion = (index: number) => {
+    const q = questions[index];
     setCurrentQuestion({
-      text: "",
-      choices: ["", "", "", ""],
-      correctIndices: [],
-      timeLimitSec: 15,
+      text: q.text,
+      choices: [...q.choices],
+      correctIndices: [...q.correctIndices],
+      timeLimitSec: q.timeLimitSec,
     });
+    setEditingIndex(index);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const cancelEditQuestion = () => {
+    setEditingIndex(null);
+    setCurrentQuestion({ ...EMPTY_QUESTION, choices: ["", "", "", ""] });
   };
 
   const removeQuestion = (index: number) => {
     setQuestions((prev) => prev.filter((_, i) => i !== index));
+    if (editingIndex === index) {
+      setEditingIndex(null);
+      setCurrentQuestion({ ...EMPTY_QUESTION, choices: ["", "", "", ""] });
+    }
   };
 
-  const endQuiz = () => {
+  // Collect + validate all questions (including the in-progress one if valid)
+  const collectQuestions = (): Question[] | null => {
     const isCurrentValid =
-      currentQuestion.text &&
+      !isEmptyHtml(currentQuestion.text) &&
       currentQuestion.choices.every((c) => c.trim()) &&
       currentQuestion.correctIndices.length > 0;
 
-    const finalQuestions = isCurrentValid
-      ? [...questions, currentQuestion]
-      : [...questions];
+    let finalQuestions: Question[];
+    if (editingIndex !== null) {
+      // An edit is in progress: commit it if valid, otherwise keep the original
+      finalQuestions = isCurrentValid
+        ? questions.map((q, i) => (i === editingIndex ? currentQuestion : q))
+        : [...questions];
+    } else {
+      finalQuestions = isCurrentValid
+        ? [...questions, currentQuestion]
+        : [...questions];
+    }
 
     if (finalQuestions.length === 0) {
       alert("Add at least one valid question");
-      return;
+      return null;
     }
     if (!quizDetails.title) {
       alert("Please enter a title for the quiz.");
-      return;
+      return null;
     }
+    return finalQuestions;
+  };
 
+  const saveQuiz = () => {
+    const finalQuestions = collectQuestions();
+    if (!finalQuestions) return;
+    if (onSaveOnly) {
+      onSaveOnly({ ...quizDetails, questions: finalQuestions });
+    } else {
+      onSave({ ...quizDetails, questions: finalQuestions });
+    }
+  };
+
+  const endQuiz = () => {
+    const finalQuestions = collectQuestions();
+    if (!finalQuestions) return;
     onSave({ ...quizDetails, questions: finalQuestions });
   };
 
@@ -1487,7 +1581,7 @@ export default function QuizEditor({ onSave }: QuizEditorProps) {
     <div className="max-w-4xl mx-auto space-y-6">
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-4">
-         Create Quiz
+          {isEditing ? "Edit Quiz" : "Create Quiz"}
         </h2>
         <div className="mb-4">
           <label className="block mb-1 font-medium">
@@ -1517,17 +1611,13 @@ export default function QuizEditor({ onSave }: QuizEditorProps) {
         </h2>
 
         {/* Question Editor */}
-        <Editor
-          apiKey="0gn1nl2pcgdtjpnb3b8iyodwu7az8ldbkqxpa75qztjwti0q"
+        <ReactQuill
+          theme="snow"
           value={currentQuestion.text}
-          onEditorChange={handleEditorChange}
-          init={{
-            height: 200,
-            menubar: false,
-            plugins: "link lists image code fullscreen",
-            toolbar:
-              "undo redo | bold italic | alignleft aligncenter alignright | bullist numlist | link image | fullscreen | code",
-          }}
+          onChange={handleEditorChange}
+          modules={quillModules}
+          placeholder="Type your question here..."
+          style={{ marginBottom: "8px" }}
         />
 
         {/* Time Limit */}
@@ -1564,12 +1654,24 @@ export default function QuizEditor({ onSave }: QuizEditorProps) {
         </div>
 
         {/* Buttons */}
-        <div className="mt-6 flex gap-4">
+        <div className="mt-6 flex flex-wrap gap-4">
           <Button onClick={addQuestion}>
-            <Plus className="mr-2 h-4 w-4" /> Add Question
+            {editingIndex !== null ? (
+              <><Pencil className="mr-2 h-4 w-4" /> Update Question</>
+            ) : (
+              <><Plus className="mr-2 h-4 w-4" /> Add Question</>
+            )}
+          </Button>
+          {editingIndex !== null && (
+            <Button variant="ghost" onClick={cancelEditQuestion}>
+              Cancel Edit
+            </Button>
+          )}
+          <Button variant="secondary" onClick={saveQuiz}>
+            {isEditing ? "Save Changes" : "Save Quiz"}
           </Button>
           <Button variant="outline" onClick={endQuiz}>
-            End Quiz & Host
+            {isEditing ? "Save & Host" : "End Quiz & Host"}
           </Button>
         </div>
       </Card>
@@ -1577,12 +1679,14 @@ export default function QuizEditor({ onSave }: QuizEditorProps) {
       {/* Added Questions */}
       {questions.length > 0 && (
         <Card className="p-4">
-          <h3 className="font-semibold mb-3">Added Questions</h3>
+          <h3 className="font-semibold mb-3">Added Questions ({questions.length})</h3>
 
           {questions.map((q, idx) => (
             <div
               key={idx}
-              className="border p-3 rounded mb-2 bg-white"
+              className={`border p-3 rounded mb-2 bg-white ${
+                editingIndex === idx ? "ring-2 ring-purple-400" : ""
+              }`}
             >
               <div className="flex justify-between items-start">
                 <div>
@@ -1598,12 +1702,22 @@ export default function QuizEditor({ onSave }: QuizEditorProps) {
                   </p>
                 </div>
 
-                <Button
-                  variant="ghost"
-                  onClick={() => removeQuestion(idx)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    onClick={() => editQuestion(idx)}
+                    title="Edit question"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => removeQuestion(idx)}
+                    title="Remove question"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           ))}

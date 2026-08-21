@@ -373,6 +373,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Card, TextField, Button, Typography } from "@mui/material";
 import { motion } from "framer-motion";
+import { setAuthToken } from "./api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -399,7 +400,7 @@ export default function Login() {
 
       if (!res.ok) throw new Error(data.message);
 
-      localStorage.setItem("token", data.token);
+      setAuthToken(data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
       navigate("/host");

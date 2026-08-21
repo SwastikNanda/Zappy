@@ -19,7 +19,7 @@ export default function Host() {
   });
 
   useEffect(() => {
-    if (loggedIn) API.get("/quizzes/mine").then(r => setQuizzes(r.data));
+    if (loggedIn) API.get("/quizzes").then(r => setQuizzes(r.data));
   }, [loggedIn]);
 
   async function register() {
@@ -30,7 +30,7 @@ export default function Host() {
     const res = await API.post("/auth/login", { email: auth.email, password: auth.password });
     setAuthToken(res.data.token);
     setLoggedIn(true);
-    const mine = await API.get("/quizzes/mine");
+    const mine = await API.get("/quizzes");
     setQuizzes(mine.data);
   }
   async function createQuiz() {
@@ -38,7 +38,7 @@ export default function Host() {
     setQuizzes([res.data, ...quizzes]);
   }
   function hostQuiz(quiz) {
-    socket.emit("host:create_room", { quiz });
+    socket.emit("host:create_room", { quizId: quiz._id });
     socket.once("host:room_created", ({ roomCode }) => {
       nav(`/host/${roomCode}`);
     });

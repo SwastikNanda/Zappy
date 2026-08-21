@@ -2174,34 +2174,65 @@
 
 
 import { Box, Card, Typography, Button, Divider } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { useSocket } from "./useSocket";
 import { motion } from "framer-motion";
 import Leaderboard from "./components/Leaderboard";
+import {
+  playJoinSound,
+  playQuestionStartSound,
+  playClickSound,
+  playSubmitSound,
+  playCorrectSound,
+  playWrongSound,
+  playTickSound,
+  playTimeUpSound,
+  playGameOverSound,
+} from "./utils/sounds";
+import {
+  startLobbyMusic,
+  startQuestionMusic,
+  setPanic,
+  stopMusic,
+  toggleMusicMuted,
+  isMusicMuted,
+} from "./utils/musicEngine";
 
 export default function PlayerGame() {
   const { code } = useParams();
   const [params] = useSearchParams();
-  const name = useMemo(() => params.get("name") || "Player", [params]);
+  const paramName = params.get("name");
   const socket = useSocket();
+
+  // If no name in URL, show a prompt before joining
+  const [playerName, setPlayerName] = useState(paramName || "");
+  const [nameConfirmed, setNameConfirmed] = useState(!!paramName);
+
+  const name = playerName || "Player";
 
   const [state, setState] = useState({ phase: "lobby", leaderboard: [] });
   const [selectedAnswers, setSelectedAnswers] = useState([]);
   const [selectedRadioAnswer, setSelectedRadioAnswer] = useState(null);
   const [timer, setTimer] = useState(0);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [musicMuted, setMusicMuted] = useState(isMusicMuted());
 
   const emojis = ["⚡", "🎯", "🎉", "🔥", "💡", "⭐", "🎮", "🥳"];
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !nameConfirmed) return;
     socket.emit("player:join", { roomCode: code, name });
 
-    const onLobby = ({ count }) =>
+    const onLobby = ({ count }) => {
+      playJoinSound();
+      startLobbyMusic();
       setState((prev) => ({ ...prev, phase: "lobby", count }));
+    };
 
     const onStart = (q) => {
+      playQuestionStartSound();
+      startQuestionMusic();
       setState((prev) => ({ ...prev, phase: "question", q }));
       setSelectedAnswers([]);
       setSelectedRadioAnswer(null);
@@ -2210,106 +2241,217 @@ export default function PlayerGame() {
       setTimer(Math.ceil(ms / 1000));
     };
 
-    const tick = setInterval(() => setTimer((t) => Math.max(0, t - 1)), 1000);
+    const tick = setInterval(() => setTimer((t) => {
+      const next = Math.max(0, t - 1);
+      if (next > 0 && next <= 5) { playTickSound(); setPanic(true); }
+      if (next === 0 && t > 0) playTimeUpSound();
+      return next;
+    }), 1000);
 
-    const onEnd = ({ correctIndices, leaderboard }) =>
+    const onEnd = ({ correctIndices, leaderboard }) => {
+      startLobbyMusic();
       setState((prev) => ({
         ...prev,
         phase: "reveal",
         correctIndices,
         leaderboard,
       }));
+    };
 
-    const onOver = ({ leaderboard }) =>
+    const onOver = ({ leaderboard }) => {
+      playGameOverSound();
+      stopMusic();
       setState((prev) => ({ ...prev, phase: "over", leaderboard }));
+    };
 
     const onLiveLeaderboard = ({ leaderboard }) =>
       setState((prev) => ({ ...prev, leaderboard }));
+
+    const onClosed = () => {
+      stopMusic();
+      setState((prev) => ({ ...prev, phase: "closed" }));
+    };
 
     socket.on("lobby:update", onLobby);
     socket.on("question:start", onStart);
     socket.on("question:end", onEnd);
     socket.on("game:over", onOver);
     socket.on("leaderboard:update", onLiveLeaderboard);
+    socket.on("game:closed", onClosed);
 
     return () => {
       clearInterval(tick);
+      stopMusic();
       socket.off("lobby:update", onLobby);
       socket.off("question:start", onStart);
       socket.off("question:end", onEnd);
       socket.off("game:over", onOver);
       socket.off("leaderboard:update", onLiveLeaderboard);
+      socket.off("game:closed", onClosed);
     };
-  }, [socket, code, name]);
+  }, [socket, code, name, nameConfirmed]);
+
+  const submitWith = (indices) => {
+    if (hasSubmitted || !state.q) return;
+    playSubmitSound();
+    socket.emit("player:answer", {
+      roomCode: code,
+      choiceIndices: indices,
+    });
+    setHasSubmitted(true);
+  };
 
   const handleCheckboxChange = (index) => {
     if (hasSubmitted) return;
-    setSelectedAnswers((prev) =>
-      prev.includes(index)
-        ? prev.filter((i) => i !== index)
-        : [...prev, index]
-    );
+    playClickSound();
+    const next = selectedAnswers.includes(index)
+      ? selectedAnswers.filter((i) => i !== index)
+      : [...selectedAnswers, index];
+    setSelectedAnswers(next);
+
+    // Auto-submit once the allowed number of options has been selected
+    const allowed = state.q?.correctCount || 1;
+    if (next.length >= allowed) {
+      submitWith(next);
+    }
   };
 
   const handleRadioChange = (index) => {
     if (hasSubmitted) return;
+    playClickSound();
     setSelectedRadioAnswer(index);
+    // Single-answer questions submit immediately on selection
+    submitWith([index]);
   };
 
-  const submitAnswers = () => {
-    const q = state.q;
-    if (!q || hasSubmitted) return;
-
-    if (q.hasMultipleAnswers && selectedAnswers.length > 0) {
-      socket.emit("player:answer", {
-        roomCode: code,
-        choiceIndices: selectedAnswers,
-      });
-      setHasSubmitted(true);
-    } else if (!q.hasMultipleAnswers && selectedRadioAnswer !== null) {
-      socket.emit("player:answer", {
-        roomCode: code,
-        choiceIndices: [selectedRadioAnswer],
-      });
-      setHasSubmitted(true);
-    }
+  // --- Timer Bar with counter overlay ---
+  const TimerBar = () => {
+    const total = state.q?.timeLimitSec || 20;
+    const pct = state.q ? Math.max(0, Math.min(100, (timer / total) * 100)) : 0;
+    return (
+      <Box
+        sx={{
+          position: "relative",
+          height: "28px",
+          width: "100%",
+          background: "rgba(255,255,255,0.25)",
+          borderRadius: "10px",
+          overflow: "hidden",
+          boxShadow: "0 0 15px rgba(255,255,255,0.4)",
+          mb: 3,
+        }}
+      >
+        <motion.div
+          animate={{
+            width: `${pct}%`,
+            background:
+              timer <= 5
+                ? "linear-gradient(90deg,#ef4444,#f97316,#fde68a)"
+                : "linear-gradient(90deg,#fde68a,#f9a8d4,#c084fc)",
+          }}
+          transition={{ duration: 1, ease: "linear" }}
+          style={{
+            height: "100%",
+            borderRadius: "10px",
+            boxShadow:
+              timer <= 5
+                ? "0 0 25px rgba(239,68,68,0.8)"
+                : "0 0 20px rgba(255,255,255,0.8)",
+          }}
+        />
+        <Typography
+          sx={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 800,
+            fontSize: "0.9rem",
+            color: "#1E1B4B",
+            textShadow: "0 0 6px rgba(255,255,255,0.7)",
+            pointerEvents: "none",
+          }}
+        >
+          ⏳ {timer}s
+        </Typography>
+      </Box>
+    );
   };
 
-  // --- Timer Bar ---
-  const TimerBar = () => (
-    <Box
-      sx={{
-        height: "14px",
-        width: "100%",
-        background: "rgba(255,255,255,0.25)",
-        borderRadius: "8px",
-        overflow: "hidden",
-        boxShadow: "0 0 15px rgba(255,255,255,0.4)",
-        mb: 3,
-      }}
-    >
-      <motion.div
-        animate={{
-          width: state.q
-            ? `${(timer / (state.q.timeLimitSec || 20)) * 100}%`
-            : "0%",
-          background:
-            timer <= 5
-              ? "linear-gradient(90deg,#ef4444,#f97316,#fde68a)"
-              : "linear-gradient(90deg,#fde68a,#f9a8d4,#c084fc)",
+  // If name not yet confirmed, show name entry screen
+  if (!nameConfirmed) {
+    return (
+      <Box
+        className="flex flex-col items-center justify-center min-h-screen p-4"
+        sx={{
+          background: "radial-gradient(circle at 20% 30%, #7E22CE, #4C1D95, #1E1B4B)",
         }}
-        transition={{ duration: 1, ease: "linear" }}
-        style={{
-          height: "100%",
-          borderRadius: "8px",
-          boxShadow:
-            timer <= 5
-              ? "0 0 25px rgba(239,68,68,0.8)"
-              : "0 0 20px rgba(255,255,255,0.8)",
-        }}
-      />
-    </Box>
-  );
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card
+            sx={{
+              p: 5,
+              borderRadius: 4,
+              background: "rgba(255,255,255,0.08)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              boxShadow: "0 0 40px rgba(168,85,247,0.4)",
+              textAlign: "center",
+              maxWidth: 400,
+              width: "100%",
+            }}
+          >
+            <Typography variant="h4" sx={{ color: "#fff", fontWeight: 700, mb: 1 }}>
+              🎮 Join the Game!
+            </Typography>
+            <Typography sx={{ color: "rgba(255,255,255,0.7)", mb: 3 }}>
+              Room: <strong>{code}</strong>
+            </Typography>
+            <input
+              type="text"
+              placeholder="Enter your name..."
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && playerName.trim()) setNameConfirmed(true); }}
+              autoFocus
+              style={{
+                width: "100%",
+                padding: "14px 18px",
+                borderRadius: "12px",
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: "rgba(255,255,255,0.1)",
+                color: "#fff",
+                fontSize: "1.1rem",
+                outline: "none",
+                marginBottom: "16px",
+              }}
+            />
+            <Button
+              variant="contained"
+              fullWidth
+              disabled={!playerName.trim()}
+              onClick={() => setNameConfirmed(true)}
+              sx={{
+                py: 1.5,
+                borderRadius: 3,
+                fontWeight: 700,
+                fontSize: "1.1rem",
+                background: "linear-gradient(135deg, #a78bfa, #7c3aed)",
+                "&:hover": { background: "linear-gradient(135deg, #7c3aed, #6d28d9)" },
+              }}
+            >
+              Let's Go! 🚀
+            </Button>
+          </Card>
+        </motion.div>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -2328,6 +2470,35 @@ export default function PlayerGame() {
         }
       `}
       </style>
+
+      {/* Background-music mute toggle */}
+      <Box
+        onClick={() => setMusicMuted(toggleMusicMuted())}
+        title={musicMuted ? "Unmute music" : "Mute music"}
+        sx={{
+          position: "fixed",
+          top: 16,
+          right: 16,
+          zIndex: 50,
+          cursor: "pointer",
+          width: 44,
+          height: 44,
+          borderRadius: "50%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "20px",
+          background: "rgba(255,255,255,0.15)",
+          backdropFilter: "blur(6px)",
+          border: "1px solid rgba(255,255,255,0.25)",
+          boxShadow: "0 0 12px rgba(255,255,255,0.2)",
+          userSelect: "none",
+          transition: "transform 0.15s",
+          "&:hover": { transform: "scale(1.1)" },
+        }}
+      >
+        {musicMuted ? "🔇" : "🔊"}
+      </Box>
 
       {emojis.map((emoji, i) => (
         <motion.div
@@ -2426,20 +2597,20 @@ export default function PlayerGame() {
           {state.phase === "question" && (
             <Box>
               <Typography
-                variant="h5"
+                variant="h6"
                 sx={{
                   mb: 2,
                   fontWeight: 700,
                   color: "#1E1B4B",
                   textShadow: "0 0 10px rgba(255,255,255,0.5)",
-                  fontSize: { xs: "1.25rem", md: "1.5rem" }
+                  fontSize: { xs: "1rem", md: "1.25rem" },
                 }}
-                dangerouslySetInnerHTML={{ __html: state.q.text }}
-              />
-              <TimerBar />
-              <Typography variant="body2" sx={{ mb: 3, color: "#e0e0ff" }}>
-                ⏳ {timer}s left
+              >
+                {state.q.hasMultipleAnswers
+                  ? `Select ${state.q.correctCount || 2} options 👇`
+                  : "Tap your answer 👇"}
               </Typography>
+              <TimerBar />
 
               <Box
                 sx={{
@@ -2470,20 +2641,25 @@ export default function PlayerGame() {
                         textAlign: "center",
                         fontWeight: 600,
                         border: isSelected
-                          ? "2px solid #FDE68A"
+                          ? "2px solid #22c55e"
                           : "1px solid rgba(255,255,255,0.3)",
                         backgroundColor: isSelected
-                          ? "rgba(255,255,255,0.3)"
+                          ? "rgba(34,197,94,0.35)"
                           : "rgba(255,255,255,0.15)",
-                        color: "#22236cff",
+                        color: isSelected ? "#065f46" : "#22236cff",
                         opacity: hasSubmitted && !isSelected ? 0.6 : 1,
+                        boxShadow: isSelected
+                          ? "0 0 18px rgba(34,197,94,0.6)"
+                          : "none",
                         animation:
                           hasSubmitted && isSelected
                             ? "pulseGlow 1.5s infinite ease-in-out"
                             : "none",
                         "&:hover": !hasSubmitted
                           ? {
-                              backgroundColor: "rgba(255,255,255,0.25)",
+                              backgroundColor: isSelected
+                                ? "rgba(34,197,94,0.45)"
+                                : "rgba(255,255,255,0.25)",
                               transform: "scale(1.04)",
                             }
                           : {},
@@ -2495,29 +2671,18 @@ export default function PlayerGame() {
                 })}
               </Box>
 
-              <Button
-                variant="contained"
-                onClick={submitAnswers}
-                disabled={hasSubmitted}
-                sx={{
-                  mt: 4,
-                  py: 1.2,
-                  px: 4,
-                  borderRadius: "12px",
-                  background:
-                    "linear-gradient(90deg,#FDE68A,#F9A8D4,#C084FC)",
-                  color: "#1E1B4B",
-                  fontWeight: 700,
-                  "&:hover": {
-                    transform: hasSubmitted ? "none" : "scale(1.05)",
-                    boxShadow: hasSubmitted
-                      ? "none"
-                      : "0 0 25px rgba(255,255,255,0.6)",
-                  },
-                }}
-              >
-                {hasSubmitted ? "Answer Locked 🔒" : "Submit Answer"}
-              </Button>
+              {hasSubmitted && (
+                <Typography
+                  sx={{
+                    mt: 4,
+                    fontWeight: 700,
+                    color: "#22c55e",
+                    fontSize: "1.1rem",
+                  }}
+                >
+                  Answer Locked 🔒
+                </Typography>
+              )}
             </Box>
           )}
 
@@ -2537,7 +2702,33 @@ export default function PlayerGame() {
 
           {state.phase === "over" && (
             <Box>
-              <Leaderboard leaderboard={state.leaderboard} />
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 800,
+                  mb: 3,
+                  background: "linear-gradient(90deg,#FDE68A,#F9A8D4,#C084FC)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                🎉 Final Results
+              </Typography>
+              <Leaderboard leaderboard={state.leaderboard} podium />
+            </Box>
+          )}
+
+          {state.phase === "closed" && (
+            <Box>
+              <Typography variant="h5" sx={{ color: "#1E1B4B", fontWeight: 700, mb: 2 }}>
+                👋 The host has ended this session
+              </Typography>
+              <Typography sx={{ color: "#e0e0ff", mb: 3 }}>
+                Thanks for playing!
+              </Typography>
+              <Link to="/join" style={{ color: "#FDE68A", fontWeight: 700 }}>
+                Join another game
+              </Link>
             </Box>
           )}
         </Card>

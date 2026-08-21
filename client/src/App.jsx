@@ -222,6 +222,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import confetti from "canvas-confetti";
 import Login from "./Login";
 import Register from "./Register";
+import BackgroundMusic from "./components/BackgroundMusic";
 
 export default function App() {
   return (
@@ -267,6 +268,7 @@ function Home() {
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center text-center overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 animate-gradient">
+      <BackgroundMusic />
       {/* Moving gradient animation */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(255,255,255,0.12),transparent_50%),radial-gradient(circle_at_80%_70%,rgba(255,255,255,0.12),transparent_50%)]" />
 

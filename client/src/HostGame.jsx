@@ -1253,7 +1253,24 @@ import { motion } from "framer-motion";
 import { AnimatePresence } from "framer-motion";
 import QuizEditor from "./QuizEditor";
 import SavedQuizzes from "./SavedQuizzes";
+import { QRCodeCanvas } from "qrcode.react";
 import API from "./api";
+import Leaderboard from "./components/Leaderboard";
+import {
+  playJoinSound,
+  playQuestionStartSound,
+  playTimeUpSound,
+  playGameOverSound,
+  playRoomCreatedSound,
+} from "./utils/sounds";
+import {
+  startLobbyMusic,
+  startQuestionMusic,
+  setPanic,
+  stopMusic,
+  toggleMusicMuted,
+  isMusicMuted,
+} from "./utils/musicEngine";
 
 
 export default function HostGame() {
@@ -1268,50 +1285,138 @@ export default function HostGame() {
   const [correctIndices, setCorrectIndices] = useState([]);
   const [totalAnswered, setTotalAnswered] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+  const [timer, setTimer] = useState(0);
+  const [timeLimit, setTimeLimit] = useState(20);
   const navigate = useNavigate();
   const roomLink = `${window.location.origin}/play/${roomCode}`;
 
   const emojis = ["⚡", "🎯", "🎉", "🔥", "💡", "🧠", "🎵", "⭐", "🎮", "🥳"];
 
   const [quizCreated, setQuizCreated] = useState(false);
+  const [musicMuted, setMusicMuted] = useState(isMusicMuted());
+  const [editingQuiz, setEditingQuiz] = useState(null);
+
+  useEffect(() => {
+    return () => stopMusic();
+  }, []);
+
+  useEffect(() => {
+    if (!currentQuestion || questionEnded) return;
+    const t = setInterval(() => setTimer((x) => Math.max(0, x - 1)), 1000);
+    return () => clearInterval(t);
+  }, [currentQuestion, questionEnded]);
+
+  // Persist a quiz (create or update) and return the saved quiz, or null on failure
+  async function persistQuiz(quizData) {
+    if (editingQuiz && editingQuiz._id) {
+      const res = await API.put(`/quizzes/${editingQuiz._id}`, quizData);
+      return res.data;
+    }
+    const res = await API.post("/quizzes", quizData);
+    return res.data;
+  }
 
   async function handleCreateQuiz(quizData) {
-    console.log("Saving quiz:", quizData);
     try {
-      const res = await API.post("/quizzes", quizData);
-      console.log("Quiz saved:", res.data);
-      setQuizCreated(!quizCreated);
-      createRoom(res.data._id);
+      const saved = await persistQuiz(quizData);
+      setQuizCreated((v) => !v);
+      setEditingQuiz(null);
+      createRoom(saved._id);
     } catch (error) {
       console.error("Failed to save quiz:", error);
       alert("Failed to save quiz. Check the browser console for more details.");
     }
   }
 
+  // Save the quiz without starting a game
+  async function handleSaveQuiz(quizData) {
+    try {
+      await persistQuiz(quizData);
+      setQuizCreated((v) => !v);
+      const wasEditing = !!editingQuiz;
+      setEditingQuiz(null);
+      alert(wasEditing ? "Quiz updated successfully ✅" : "Quiz saved successfully ✅");
+      setActiveTab("saved");
+    } catch (error) {
+      console.error("Failed to save quiz:", error);
+      alert("Failed to save quiz. Check the browser console for more details.");
+    }
+  }
+
+  // Load a saved quiz into the editor
+  async function handleEditQuiz(quizId) {
+    try {
+      const res = await API.get(`/quizzes/${quizId}`);
+      setEditingQuiz(res.data);
+      setActiveTab("create");
+    } catch (error) {
+      console.error("Failed to load quiz:", error);
+      alert("Failed to load quiz for editing.");
+    }
+  }
+
+  function startNewQuiz() {
+    setEditingQuiz(null);
+    setActiveTab("create");
+  }
+
 function createRoom(quizId) {
+  // Remove any previously registered listeners to prevent stacking
+  socket.off("host:room_created");
+  socket.off("host:players_update");
+  socket.off("leaderboard:update");
+  socket.off("question:start");
+  socket.off("question:end");
+  socket.off("game:over");
+
+  // Reset any stale state from a previous/abandoned game so re-hosting is clean
+  setPlayers([]);
+  setLeaderboard([]);
+  setCurrentQuestion(null);
+  setQuestionEnded(false);
+  setAnswerDistribution([]);
+  setCorrectIndices([]);
+  setTotalAnswered(0);
+  setGameOver(false);
+  setTimer(0);
+
   socket.emit("host:create_room", { quizId });
     socket.on("host:room_created", ({ roomCode }) => {
       console.log("Room created:", roomCode);
+      playRoomCreatedSound();
+      startLobbyMusic();
       setRoomCode(roomCode)
     });
-    socket.on("host:players_update", ({ players }) => setPlayers(players));
-    socket.on("leaderboard:update", ({ leaderboard }) =>
-      setLeaderboard(leaderboard)
-    );
-    socket.on("question:start", ({ questionNumber, totalQuestions, text, choices }) => {
+    socket.on("host:players_update", ({ players }) => {
+      playJoinSound();
+      setPlayers(players);
+    });
+    socket.on("leaderboard:update", ({ leaderboard }) => {
+      setLeaderboard(leaderboard);
+    });
+    socket.on("question:start", ({ questionNumber, totalQuestions, text, choices, endsAt, timeLimitSec }) => {
+      playQuestionStartSound();
+      startQuestionMusic();
       setCurrentQuestion({ questionNumber, totalQuestions, text, choices });
       setQuestionEnded(false);
       setAnswerDistribution([]);
       setCorrectIndices([]);
+      setTimeLimit(timeLimitSec || 20);
+      setTimer(endsAt ? Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)) : (timeLimitSec || 20));
     });
     socket.on("question:end", ({ correctIndices, leaderboard, answerDistribution, totalAnswered }) => {
+      playTimeUpSound();
+      startLobbyMusic();
       setQuestionEnded(true);
+      setTimer(0);
       setAnswerDistribution(answerDistribution || []);
       setCorrectIndices(correctIndices || []);
       setTotalAnswered(totalAnswered || 0);
       if (leaderboard) setLeaderboard(leaderboard);
     });
     socket.on("game:over", ({ leaderboard }) => {
+      playGameOverSound();
+      stopMusic();
       setLeaderboard(leaderboard);
       setGameOver(true);
       setCurrentQuestion(null);
@@ -1322,15 +1427,61 @@ function createRoom(quizId) {
     socket.emit("host:next_question", { roomCode });
   }
 
+  function exitRoom() {
+    if (roomCode) socket.emit("host:close_room", { roomCode });
+    stopMusic();
+    setRoomCode(null);
+    setPlayers([]);
+    setLeaderboard([]);
+    setCurrentQuestion(null);
+    setQuestionEnded(false);
+    setAnswerDistribution([]);
+    setCorrectIndices([]);
+    setTotalAnswered(0);
+    setGameOver(false);
+    setTimer(0);
+    setEditingQuiz(null);
+    setActiveTab("saved");
+  }
+
   if (roomCode) {
     return (
       <Box
-        className="flex flex-col items-center justify-center min-h-screen relative overflow-hidden"
+        className="flex flex-col items-center justify-center min-h-screen relative overflow-hidden px-4 md:px-6 pt-20"
         sx={{
           background:
             "radial-gradient(circle at 20% 30%, #7E22CE, #4C1D95, #1E1B4B)",
         }}
       >
+        {/* Background-music mute toggle */}
+        <Box
+          onClick={() => setMusicMuted(toggleMusicMuted())}
+          title={musicMuted ? "Unmute music" : "Mute music"}
+          sx={{
+            position: "fixed",
+            top: 16,
+            right: 16,
+            zIndex: 50,
+            cursor: "pointer",
+            width: 44,
+            height: 44,
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "20px",
+            background: "rgba(255,255,255,0.15)",
+            backdropFilter: "blur(6px)",
+            border: "1px solid rgba(255,255,255,0.25)",
+            boxShadow: "0 0 12px rgba(255,255,255,0.2)",
+            userSelect: "none",
+            transition: "transform 0.15s",
+            "&:hover": { transform: "scale(1.1)" },
+          }}
+        >
+          {musicMuted ? "🔇" : "🔊"}
+        </Box>
+
         {/* Floating Emojis */}
         {emojis.map((emoji, i) => (
           <motion.div
@@ -1363,8 +1514,8 @@ function createRoom(quizId) {
             initial={{ x: 300, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.6 }}
-            className="absolute right-6 top-6 z-20"
-            style={{ top: "100px" }} // ✅ offset to avoid navbar
+            className="hidden md:block absolute right-6 top-6 z-20"
+            style={{ top: "100px" }}
           >
             <Card
               className="p-4 bg-white/20 backdrop-blur-md border border-white/40"
@@ -1408,39 +1559,75 @@ function createRoom(quizId) {
             className="p-8 bg-white/10 backdrop-blur-lg border border-white/20 shadow-[0_0_25px_rgba(255,255,255,0.15)] text-center mt-20"
             sx={{ borderRadius: "22px" }}
           >
-            <Typography
-              variant="h3"
-              sx={{
-                fontWeight: 700,
-                mb: 2,
-                background: "linear-gradient(90deg,#FDE68A,#F9A8D4,#C084FC)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}>
-              Room Code: {roomCode}
-            </Typography>
+            {!currentQuestion && !gameOver && (
+              <>
+                <Typography
+                  variant="h3"
+                  sx={{
+                    fontWeight: 700,
+                    mb: 2,
+                    background: "linear-gradient(90deg,#FDE68A,#F9A8D4,#C084FC)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                  }}>
+                  Room Code: {roomCode}
+                </Typography>
 
-            <Typography
-              variant="h5"
-              sx={{
-                fontWeight:300,
-                mb: 1,
-                background: "radial-gradient(circle at 20% 30%, #bbb4c2ff, #8068a5ff, #3d3983ff)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              <a href={roomLink} color="linear-gradient(90deg,#FDE68A,#F9A8D4,#C084FC)"> {roomLink}</a>
-            </Typography>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight:300,
+                    mb: 1,
+                    background: "radial-gradient(circle at 20% 30%, #bbb4c2ff, #8068a5ff, #3d3983ff)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                  }}
+                >
+                  <a href={roomLink} color="linear-gradient(90deg,#FDE68A,#F9A8D4,#C084FC)"> {roomLink}</a>
+                </Typography>
 
-            <Typography
-              variant="body1"
-              sx={{ color: "rgba(20, 23, 65, 0.8)", mb: 3 }}
-            >
-              Share this code with players to join the fun 🎮
-            </Typography>
+                {/* QR code for the join link */}
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    mb: 2,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      bgcolor: "#fff",
+                      borderRadius: "16px",
+                      boxShadow: "0 0 20px rgba(255,255,255,0.25)",
+                    }}
+                  >
+                    <QRCodeCanvas
+                      value={roomLink}
+                      size={168}
+                      level="M"
+                      includeMargin={false}
+                    />
+                  </Box>
+                </Box>
 
-            {/* Current Question Indicator */}
+                <Typography
+                  variant="body2"
+                  sx={{ color: "rgba(255,255,255,0.85)", mb: 1 }}
+                >
+                  📱 Scan to join
+                </Typography>
+
+                <Typography
+                  variant="body1"
+                  sx={{ color: "rgba(20, 23, 65, 0.8)", mb: 3 }}
+                >
+                  Share this code with players to join the fun 🎮
+                </Typography>
+              </>
+            )}
+
+            {/* Current Question with options + timer */}
             {currentQuestion && (
               <Box sx={{ mb: 3 }}>
                 <Typography
@@ -1454,14 +1641,97 @@ function createRoom(quizId) {
                   📋 Question {currentQuestion.questionNumber} of {currentQuestion.totalQuestions}
                 </Typography>
                 <Typography
-                  variant="body1"
+                  variant="h5"
                   sx={{
-                    color: "#e0d6f0",
-                    fontStyle: "italic",
+                    color: "#fff",
+                    fontWeight: 700,
+                    mb: 2,
                     px: 2,
                   }}
                   dangerouslySetInnerHTML={{ __html: currentQuestion.text }}
                 />
+
+                {/* Timer bar with counter overlay */}
+                {!questionEnded && (
+                  <Box
+                    sx={{
+                      position: "relative",
+                      height: "28px",
+                      width: "100%",
+                      background: "rgba(255,255,255,0.2)",
+                      borderRadius: "10px",
+                      overflow: "hidden",
+                      boxShadow: "0 0 15px rgba(255,255,255,0.3)",
+                      mb: 3,
+                    }}
+                  >
+                    <motion.div
+                      animate={{
+                        width: `${Math.max(0, Math.min(100, (timer / (timeLimit || 20)) * 100))}%`,
+                        background:
+                          timer <= 5
+                            ? "linear-gradient(90deg,#ef4444,#f97316,#fde68a)"
+                            : "linear-gradient(90deg,#fde68a,#f9a8d4,#c084fc)",
+                      }}
+                      transition={{ duration: 1, ease: "linear" }}
+                      style={{ height: "100%", borderRadius: "10px" }}
+                    />
+                    <Typography
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontWeight: 800,
+                        fontSize: "0.9rem",
+                        color: "#1E1B4B",
+                        textShadow: "0 0 6px rgba(255,255,255,0.7)",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      ⏳ {timer}s
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* Options */}
+                {currentQuestion.choices && (
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
+                      gap: 2,
+                    }}
+                  >
+                    {currentQuestion.choices.map((choice, i) => {
+                      const isCorrect = questionEnded && correctIndices.includes(i);
+                      return (
+                        <Box
+                          key={i}
+                          sx={{
+                            p: 2,
+                            borderRadius: "12px",
+                            textAlign: "center",
+                            fontWeight: 600,
+                            color: isCorrect ? "#065f46" : "#22236c",
+                            border: isCorrect
+                              ? "2px solid #22c55e"
+                              : "1px solid rgba(255,255,255,0.3)",
+                            background: isCorrect
+                              ? "rgba(34,197,94,0.35)"
+                              : "rgba(255,255,255,0.15)",
+                            boxShadow: isCorrect
+                              ? "0 0 18px rgba(34,197,94,0.6)"
+                              : "none",
+                          }}
+                        >
+                          {isCorrect ? "✅ " : ""}{choice}
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                )}
               </Box>
             )}
 
@@ -1521,16 +1791,21 @@ function createRoom(quizId) {
 
             {/* Game Over */}
             {gameOver && (
-              <Typography variant="h5" sx={{ color: "#FDE68A", fontWeight: 700, mb: 2 }}>
-                🎉 Game Over!
-              </Typography>
+              <Box>
+                <Typography variant="h4" sx={{ color: "#FDE68A", fontWeight: 800, mb: 3 }}>
+                  🎉 Game Over!
+                </Typography>
+                <Leaderboard leaderboard={leaderboard} podium />
+              </Box>
             )}
 
-            <ul style={{ color: "#020202ff", listStyle: "none", padding: 0 }}>
-              {players.map((p, i) => (
-                <li key={i}>{p.name}</li>
-              ))}
-            </ul>
+            {!currentQuestion && !gameOver && (
+              <ul style={{ color: "#020202ff", listStyle: "none", padding: 0 }}>
+                {players.map((p, i) => (
+                  <li key={i}>{p.name}</li>
+                ))}
+              </ul>
+            )}
 
             {!gameOver && (
               <Button
@@ -1552,6 +1827,23 @@ function createRoom(quizId) {
                 {currentQuestion ? "Next Question ➡️" : "Start Game 🚀"}
               </Button>
             )}
+
+            {/* Exit / host another quiz */}
+            <Box sx={{ mt: 2 }}>
+              <Button
+                variant="outlined"
+                onClick={exitRoom}
+                sx={{
+                  py: 1.1,
+                  borderRadius: "12px",
+                  color: "#fff",
+                  borderColor: "rgba(255,255,255,0.5)",
+                  "&:hover": { borderColor: "#fff", background: "rgba(255,255,255,0.1)" },
+                }}
+              >
+                {gameOver ? "🏠 Host Another Quiz" : "🚪 Exit Room"}
+              </Button>
+            </Box>
           </Card>
         </motion.div>
       </Box>
@@ -1700,7 +1992,27 @@ function createRoom(quizId) {
       exit={{ x: 40, opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <QuizEditor onSave={handleCreateQuiz} />
+      {editingQuiz && (
+        <Box sx={{ mb: 2, display: "flex", justifyContent: "center" }}>
+          <Button
+            variant="outlined"
+            onClick={startNewQuiz}
+            sx={{
+              borderRadius: "10px",
+              color: "#fff",
+              borderColor: "rgba(255,255,255,0.5)",
+            }}
+          >
+            ✏️ Editing "{editingQuiz.title}" — Start a new quiz instead
+          </Button>
+        </Box>
+      )}
+      <QuizEditor
+        key={editingQuiz?._id || "new"}
+        onSave={handleCreateQuiz}
+        onSaveOnly={handleSaveQuiz}
+        initialQuiz={editingQuiz}
+      />
     </motion.div>
   ) : (
     <motion.div
@@ -1710,7 +2022,11 @@ function createRoom(quizId) {
       exit={{ x: -40, opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <SavedQuizzes onHost={createRoom} quizCreated={quizCreated} />
+      <SavedQuizzes
+        onHost={createRoom}
+        onEdit={handleEditQuiz}
+        quizCreated={quizCreated}
+      />
     </motion.div>
   )}
 </AnimatePresence>

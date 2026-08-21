@@ -91,6 +91,7 @@ socket.on("host:create_room", async ({ quizId }) => {
       
       // Determine if it's a multiple-answer question
       const hasMultipleAnswers = q.correctIndices && q.correctIndices.length > 1;
+      const correctCount = q.correctIndices ? q.correctIndices.length : 1;
       const questionIndex = room.currentQ;
 
       io.to(roomCode).emit("question:start", {
@@ -100,9 +101,18 @@ socket.on("host:create_room", async ({ quizId }) => {
         text: q.text,
         choices: q.choices,
         endsAt: room.endsAt,
-        hasMultipleAnswers
+        timeLimitSec: q.timeLimitSec || 20,
+        hasMultipleAnswers,
+        correctCount
       });
       setTimeout(() => endQuestion(io, roomCode, questionIndex), (q.timeLimitSec || 20) * 1000 + 200);
+    });
+
+    socket.on("host:close_room", ({ roomCode }) => {
+      const room = rooms.get(roomCode);
+      if (!room || socket.id !== room.hostId) return;
+      rooms.delete(roomCode);
+      io.to(roomCode).emit("game:closed");
     });
 
     socket.on("player:answer", ({ roomCode, choiceIndices }) => {

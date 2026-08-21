@@ -4,3 +4,10 @@
 node_modules
 ../node_modules
 ../.env
+
+# Build artifacts
+client/dist/
+
+# Deploy scripts contain secrets (MONGO_URI, JWT_SECRET)
+deploy-azure.bat
+deploy-azure.sh

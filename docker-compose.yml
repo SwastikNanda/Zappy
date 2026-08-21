@@ -1,0 +1,19 @@
+services:
+  server:
+    build: ./server
+    ports:
+      - "5100:5100"
+    env_file:
+      - ./server/.env
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+      args:
+        VITE_API_URL: http://localhost:5100
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+    restart: unless-stopped

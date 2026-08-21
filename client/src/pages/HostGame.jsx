@@ -8,14 +8,11 @@ export default function HostPage({ roomCode }) {
   const [quiz, setQuiz] = useState(null);
   useEffect(() => {
     if (!socket) return;
-    socket.emit('host:create_room', { quiz });
-    socket.on('host:room_created', ({ roomCode: rc }) => { console.log('Room created server-side:', rc); });
     socket.on("host:players_update", ({ players }) => setPlayers(players));
     socket.on("host:leaderboard", (board) => setPlayers(board));
     socket.on("lobby:update", ({ count }) => setLobbyCount(count));
     socket.on("game:closed", () => { setPlayers([]); setLobbyCount(0); });
     return () => {
-      socket.off('host:room_created');
       socket.off("host:players_update");
       socket.off("host:leaderboard");
       socket.off("lobby:update");

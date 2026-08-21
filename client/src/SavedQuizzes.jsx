@@ -63,7 +63,7 @@ import { useEffect, useState } from "react";
 import { Card, Typography, Button } from "@mui/material";
 import API from "./api";
 
-export default function SavedQuizzes({ onHost, quizCreated }) {
+export default function SavedQuizzes({ onHost, onEdit, quizCreated }) {
   const [quizzes, setQuizzes] = useState([]);
   const token = localStorage.getItem("token");
 
@@ -126,6 +126,18 @@ export default function SavedQuizzes({ onHost, quizCreated }) {
             }}
           >
             Host this Quiz
+          </Button>
+          <Button
+            onClick={() => onEdit && onEdit(quiz._id)}
+            variant="contained"
+            sx={{
+              borderRadius: "10px",
+              background: "linear-gradient(90deg,#a78bfa,#7c3aed)",
+              color: "#fff",
+              mr: 2,
+            }}
+          >
+            Edit
           </Button>
           <Button
             onClick={() => handleDeleteQuiz(quiz._id)}
