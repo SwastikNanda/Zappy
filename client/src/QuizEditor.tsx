@@ -1657,7 +1657,7 @@ export default function QuizEditor({ onSave, onSaveOnly, initialQuiz }: QuizEdit
         </div>
 
         <h2 className="text-xl font-semibold mb-4">
-          Add Questions ({questions.length})
+          Add Questions
         </h2>
 
         {/* Question Editor */}

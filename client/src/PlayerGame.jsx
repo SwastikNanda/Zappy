@@ -2597,6 +2597,19 @@ export default function PlayerGame() {
           {state.phase === "question" && (
             <Box>
               <Typography
+                variant="h5"
+                sx={{
+                  mb: 2,
+                  px: 1,
+                  fontWeight: 700,
+                  color: "#1E1B4B",
+                  wordBreak: "break-word",
+                  overflowWrap: "anywhere",
+                  fontSize: { xs: "1.35rem", md: "1.75rem" },
+                }}
+                dangerouslySetInnerHTML={{ __html: state.q.text }}
+              />
+              <Typography
                 variant="h6"
                 sx={{
                   mb: 2,
@@ -2639,10 +2652,12 @@ export default function PlayerGame() {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        flexDirection: "column",
+                        gap: 1,
                         borderRadius: "12px",
                         textAlign: "center",
                         fontWeight: 800,
-                        fontSize: { xs: "2rem", md: "2.5rem" },
+                        fontSize: { xs: "1rem", md: "1.15rem" },
                         border: isSelected
                           ? "2px solid #22c55e"
                           : "1px solid rgba(255,255,255,0.3)",
@@ -2668,7 +2683,61 @@ export default function PlayerGame() {
                           : {},
                       }}
                     >
-                      {i + 1}
+                      {state.q.choiceImages?.[i] && (
+                        <Box
+                          component="img"
+                          src={state.q.choiceImages[i]}
+                          alt=""
+                          sx={{
+                            width: "100%",
+                            maxWidth: 180,
+                            height: { xs: 80, md: 110 },
+                            objectFit: "contain",
+                            borderRadius: "8px",
+                          }}
+                        />
+                      )}
+                      <Box
+                        sx={{
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1.5,
+                        }}
+                      >
+                        <Box
+                          component="span"
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            flexShrink: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: "50%",
+                            backgroundColor: isSelected ? "#065f46" : "#1E1B4B",
+                            color: "#fff",
+                            fontSize: "0.9rem",
+                            fontWeight: 800,
+                          }}
+                        >
+                          {i + 1}
+                        </Box>
+                        {choice && (
+                          <Box
+                            component="span"
+                            sx={{
+                              flex: 1,
+                              minWidth: 0,
+                              textAlign: "left",
+                              wordBreak: "break-word",
+                              overflowWrap: "anywhere",
+                            }}
+                          >
+                            {choice}
+                          </Box>
+                        )}
+                      </Box>
                     </Card>
                   );
                 })}
