@@ -2615,9 +2615,7 @@ export default function PlayerGame() {
               <Box
                 sx={{
                   display: "grid",
-                  gridTemplateColumns: { xs: "1fr", md: state.q.choices.some((c) => c.length > 25)
-                      ? "1fr"
-                      : "repeat(2, 1fr)" },
+                  gridTemplateColumns: "repeat(2, 1fr)",
                   gap: 2,
                 }}
               >
@@ -2637,9 +2635,14 @@ export default function PlayerGame() {
                       sx={{
                         cursor: hasSubmitted ? "not-allowed" : "pointer",
                         p: 2,
+                        minHeight: { xs: 90, md: 120 },
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                         borderRadius: "12px",
                         textAlign: "center",
-                        fontWeight: 600,
+                        fontWeight: 800,
+                        fontSize: { xs: "2rem", md: "2.5rem" },
                         border: isSelected
                           ? "2px solid #22c55e"
                           : "1px solid rgba(255,255,255,0.3)",
@@ -2665,7 +2668,7 @@ export default function PlayerGame() {
                           : {},
                       }}
                     >
-                      {choice}
+                      {i + 1}
                     </Card>
                   );
                 })}
@@ -2689,11 +2692,11 @@ export default function PlayerGame() {
           {state.phase === "reveal" && (
             <Box>
               <Typography variant="h5" sx={{ mb: 2, color: "#1E1B4B", fontSize: { xs: "1.5rem", md: "2rem" } }}>
-                ✅ Correct Answers:
+                ✅ Correct Answer{state.correctIndices?.length > 1 ? "s" : ""}:
               </Typography>
-              <Typography sx={{ mb: 3, fontWeight: 500, fontSize: { xs: "1rem", md: "1.125rem" } }}>
+              <Typography sx={{ mb: 3, fontWeight: 700, fontSize: { xs: "1.25rem", md: "1.5rem" }, color: "#1E1B4B" }}>
                 {state.correctIndices
-                  ?.map((i) => state.q.choices[i])
+                  ?.map((i) => `Option ${i + 1}`)
                   .join(", ")}
               </Typography>
               <Leaderboard leaderboard={state.leaderboard} />

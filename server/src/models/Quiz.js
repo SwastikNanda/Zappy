@@ -15,6 +15,7 @@ import mongoose from "mongoose";
 const questionSchema = new mongoose.Schema({
   text: String,
   choices: [String],
+  choiceImages: [String],
   correctIndices: { type: [Number], required: true },
   timeLimitSec: Number
 }, { _id: false });

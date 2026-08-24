@@ -100,6 +100,7 @@ socket.on("host:create_room", async ({ quizId }) => {
         totalQuestions: room.quiz.questions.length,
         text: q.text,
         choices: q.choices,
+        choiceImages: q.choiceImages || [],
         endsAt: room.endsAt,
         timeLimitSec: q.timeLimitSec || 20,
         hasMultipleAnswers,

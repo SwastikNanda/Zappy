@@ -1360,7 +1360,7 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Card } from "./components/ui/card";
 import { Checkbox } from "./components/ui/checkbox";
-import { Plus, X, Pencil } from "lucide-react";
+import { Plus, X, Pencil, Image as ImageIcon } from "lucide-react";
 
 /* ================= EDITOR CONFIG ================= */
 
@@ -1386,6 +1386,7 @@ const isEmptyHtml = (html: string) => {
 export interface Question {
   text: string;
   choices: string[];
+  choiceImages: string[];
   correctIndices: number[];
   timeLimitSec: number;
 }
@@ -1405,22 +1406,36 @@ interface QuizEditorProps {
 
 /* ================= COMPONENT ================= */
 
-const EMPTY_QUESTION: Question = {
+const MAX_IMAGE_BYTES = 1_500_000; // ~1.5 MB
+
+// Normalize a question that may come from older saved quizzes without images
+const normalizeQuestion = (q: Question): Question => ({
+  ...q,
+  choiceImages: q.choiceImages
+    ? q.choices.map((_, i) => q.choiceImages[i] ?? "")
+    : q.choices.map(() => ""),
+});
+
+// Always build fresh arrays so state updates never share references
+const makeEmptyQuestion = (): Question => ({
   text: "",
   choices: ["", "", "", ""],
+  choiceImages: ["", "", "", ""],
   correctIndices: [],
   timeLimitSec: 15,
-};
+});
 
 export default function QuizEditor({ onSave, onSaveOnly, initialQuiz }: QuizEditorProps) {
   const isEditing = !!initialQuiz;
-  const [questions, setQuestions] = useState<Question[]>(initialQuiz?.questions ?? []);
+  const [questions, setQuestions] = useState<Question[]>(
+    (initialQuiz?.questions ?? []).map(normalizeQuestion)
+  );
   const [quizDetails, setQuizDetails] = useState({
     title: initialQuiz?.title ?? "",
     description: initialQuiz?.description ?? "",
   });
 
-  const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...EMPTY_QUESTION });
+  const [currentQuestion, setCurrentQuestion] = useState<Question>(makeEmptyQuestion());
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   // Re-populate the form when a saved quiz is loaded for editing
@@ -1430,8 +1445,8 @@ export default function QuizEditor({ onSave, onSaveOnly, initialQuiz }: QuizEdit
         title: initialQuiz.title || "",
         description: initialQuiz.description || "",
       });
-      setQuestions(initialQuiz.questions || []);
-      setCurrentQuestion({ ...EMPTY_QUESTION, choices: ["", "", "", ""] });
+      setQuestions((initialQuiz.questions || []).map(normalizeQuestion));
+      setCurrentQuestion(makeEmptyQuestion());
       setEditingIndex(null);
     }
   }, [initialQuiz]);
@@ -1463,6 +1478,40 @@ export default function QuizEditor({ onSave, onSaveOnly, initialQuiz }: QuizEdit
     }));
   };
 
+  const handleChoiceImageChange = (index: number, file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      alert("Image is too large. Please use an image under 1.5 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result);
+      setCurrentQuestion((prev) => {
+        const updated = [...prev.choiceImages];
+        updated[index] = dataUrl;
+        return { ...prev, choiceImages: updated };
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeChoiceImage = (index: number) => {
+    setCurrentQuestion((prev) => {
+      const updated = [...prev.choiceImages];
+      updated[index] = "";
+      return { ...prev, choiceImages: updated };
+    });
+  };
+
+  // An option counts as filled if it has text OR an image
+  const isOptionFilled = (q: Question, i: number) =>
+    Boolean(q.choices[i]?.trim()) || Boolean(q.choiceImages[i]);
+
   const toggleCorrectAnswer = (index: number) => {
     setCurrentQuestion((prev) => ({
       ...prev,
@@ -1484,10 +1533,10 @@ export default function QuizEditor({ onSave, onSaveOnly, initialQuiz }: QuizEdit
   const addQuestion = () => {
     if (
       isEmptyHtml(currentQuestion.text) ||
-      currentQuestion.choices.some((c) => !c.trim()) ||
+      currentQuestion.choices.some((_, i) => !isOptionFilled(currentQuestion, i)) ||
       currentQuestion.correctIndices.length === 0
     ) {
-      alert("Fill question, all options, and select correct answer(s)");
+      alert("Fill question, all options (text or image), and select correct answer(s)");
       return;
     }
 
@@ -1501,14 +1550,15 @@ export default function QuizEditor({ onSave, onSaveOnly, initialQuiz }: QuizEdit
       setQuestions((prev) => [...prev, currentQuestion]);
     }
 
-    setCurrentQuestion({ ...EMPTY_QUESTION, choices: ["", "", "", ""] });
+    setCurrentQuestion(makeEmptyQuestion());
   };
 
   const editQuestion = (index: number) => {
-    const q = questions[index];
+    const q = normalizeQuestion(questions[index]);
     setCurrentQuestion({
       text: q.text,
       choices: [...q.choices],
+      choiceImages: [...q.choiceImages],
       correctIndices: [...q.correctIndices],
       timeLimitSec: q.timeLimitSec,
     });
@@ -1518,14 +1568,14 @@ export default function QuizEditor({ onSave, onSaveOnly, initialQuiz }: QuizEdit
 
   const cancelEditQuestion = () => {
     setEditingIndex(null);
-    setCurrentQuestion({ ...EMPTY_QUESTION, choices: ["", "", "", ""] });
+    setCurrentQuestion(makeEmptyQuestion());
   };
 
   const removeQuestion = (index: number) => {
     setQuestions((prev) => prev.filter((_, i) => i !== index));
     if (editingIndex === index) {
       setEditingIndex(null);
-      setCurrentQuestion({ ...EMPTY_QUESTION, choices: ["", "", "", ""] });
+      setCurrentQuestion(makeEmptyQuestion());
     }
   };
 
@@ -1533,7 +1583,7 @@ export default function QuizEditor({ onSave, onSaveOnly, initialQuiz }: QuizEdit
   const collectQuestions = (): Question[] | null => {
     const isCurrentValid =
       !isEmptyHtml(currentQuestion.text) &&
-      currentQuestion.choices.every((c) => c.trim()) &&
+      currentQuestion.choices.every((_, i) => isOptionFilled(currentQuestion, i)) &&
       currentQuestion.correctIndices.length > 0;
 
     let finalQuestions: Question[];
@@ -1636,19 +1686,59 @@ export default function QuizEditor({ onSave, onSaveOnly, initialQuiz }: QuizEdit
         </div>
 
         {/* Options */}
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 space-y-3">
+          <p className="text-sm text-gray-500">
+            Each option needs text, an image, or both.
+          </p>
           {currentQuestion.choices.map((choice, i) => (
-            <div key={i} className="flex items-center gap-2">
+            <div
+              key={i}
+              className="flex items-start gap-2 rounded-lg border border-gray-200 p-2"
+            >
               <Checkbox
+                className="mt-2"
                 checked={currentQuestion.correctIndices.includes(i)}
                 onCheckedChange={() => toggleCorrectAnswer(i)}
               />
-              <Input
-                placeholder={`Option ${i + 1}`}
-                value={choice}
-                onChange={(e) => handleChoiceChange(i, e.target.value)}
-                className="border-gray-300 shadow-sm shadow-purple-200/50 focus:border-purple-400"
-              />
+              <div className="flex-1 min-w-0 space-y-2">
+                <Input
+                  placeholder={`Option ${i + 1}`}
+                  value={choice}
+                  onChange={(e) => handleChoiceChange(i, e.target.value)}
+                  className="border-gray-300 shadow-sm shadow-purple-200/50 focus:border-purple-400"
+                />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="inline-flex items-center gap-1 cursor-pointer text-sm text-purple-600 hover:text-purple-800">
+                    <ImageIcon className="h-4 w-4" />
+                    <span>{currentQuestion.choiceImages[i] ? "Change image" : "Add image"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        handleChoiceImageChange(i, e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  {currentQuestion.choiceImages[i] && (
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={currentQuestion.choiceImages[i]}
+                        alt={`Option ${i + 1}`}
+                        className="h-12 w-12 rounded object-cover border border-gray-200"
+                      />
+                      <Button
+                        variant="ghost"
+                        onClick={() => removeChoiceImage(i)}
+                        title="Remove image"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -1688,18 +1778,37 @@ export default function QuizEditor({ onSave, onSaveOnly, initialQuiz }: QuizEdit
                 editingIndex === idx ? "ring-2 ring-purple-400" : ""
               }`}
             >
-              <div className="flex justify-between items-start">
-                <div>
+              <div className="flex justify-between items-start gap-2">
+                <div className="min-w-0 flex-1">
                   <div
+                    className="break-words [overflow-wrap:anywhere]"
                     dangerouslySetInnerHTML={{ __html: q.text }}
                   />
-                  <p className="text-sm text-gray-500">
-                    Options: {q.choices.join(", ")}
-                  </p>
-                  <p className="text-sm text-green-600">
-                    Correct:{" "}
-                    {q.correctIndices.map((i) => q.choices[i]).join(", ")}
-                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {q.choices.map((c, i) => (
+                      <div
+                        key={i}
+                        className={`flex items-center gap-1 rounded border px-2 py-1 text-sm break-words [overflow-wrap:anywhere] ${
+                          q.correctIndices.includes(i)
+                            ? "border-green-400 bg-green-50 text-green-700"
+                            : "border-gray-200 text-gray-600"
+                        }`}
+                      >
+                        <span className="font-semibold">{i + 1}.</span>
+                        {q.choiceImages?.[i] && (
+                          <img
+                            src={q.choiceImages[i]}
+                            alt={`Option ${i + 1}`}
+                            className="h-8 w-8 rounded object-cover"
+                          />
+                        )}
+                        {c?.trim() && <span>{c}</span>}
+                        {!c?.trim() && !q.choiceImages?.[i] && (
+                          <span className="italic text-gray-400">empty</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-1">

@@ -1647,6 +1647,8 @@ function createRoom(quizId) {
                     fontWeight: 700,
                     mb: 2,
                     px: 2,
+                    wordBreak: "break-word",
+                    overflowWrap: "anywhere",
                   }}
                   dangerouslySetInnerHTML={{ __html: currentQuestion.text }}
                 />
@@ -1706,6 +1708,7 @@ function createRoom(quizId) {
                   >
                     {currentQuestion.choices.map((choice, i) => {
                       const isCorrect = questionEnded && correctIndices.includes(i);
+                      const img = currentQuestion.choiceImages && currentQuestion.choiceImages[i];
                       return (
                         <Box
                           key={i}
@@ -1724,9 +1727,33 @@ function createRoom(quizId) {
                             boxShadow: isCorrect
                               ? "0 0 18px rgba(34,197,94,0.6)"
                               : "none",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: 1,
+                            wordBreak: "break-word",
+                            overflowWrap: "anywhere",
                           }}
                         >
-                          {isCorrect ? "✅ " : ""}{choice}
+                          {img && (
+                            <Box
+                              component="img"
+                              src={img}
+                              alt={`Option ${i + 1}`}
+                              sx={{
+                                maxHeight: 140,
+                                maxWidth: "100%",
+                                borderRadius: "8px",
+                                objectFit: "contain",
+                              }}
+                            />
+                          )}
+                          <Box component="span">
+                            <Box component="span" sx={{ fontWeight: 800, mr: 0.5 }}>
+                              {i + 1}.
+                            </Box>
+                            {isCorrect ? "✅ " : ""}{choice}
+                          </Box>
                         </Box>
                       );
                     })}
@@ -1752,9 +1779,14 @@ function createRoom(quizId) {
                           sx={{
                             color: isCorrect ? "#4ade80" : "#e0d6f0",
                             fontWeight: isCorrect ? 700 : 400,
+                            wordBreak: "break-word",
+                            overflowWrap: "anywhere",
+                            pr: 1,
                           }}
                         >
-                          {isCorrect ? "✅ " : ""}{item.choiceText}
+                          {isCorrect ? "✅ " : ""}
+                          {`Option ${item.choiceIndex + 1}`}
+                          {item.choiceText ? `: ${item.choiceText}` : ""}
                         </Typography>
                         <Typography variant="body2" sx={{ color: "#C084FC", fontWeight: 600 }}>
                           {item.percentage}% ({item.count})
