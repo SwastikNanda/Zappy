@@ -2572,7 +2572,7 @@ export default function PlayerGame() {
         className="z-10 w-full max-w-3xl"
       >
         <Card
-          className="p-4 md:p-8 bg-white/10 backdrop-blur-lg border border-white/40 text-center shadow-[0_0_25px_rgba(255,255,255,0.3)]"
+          className="p-4 md:p-8 bg-white/80 backdrop-blur-lg border border-white/40 text-center shadow-[0_0_25px_rgba(255,255,255,0.3)]"
           sx={{
             borderRadius: "22px",
             animation: "pulseGlow 3s infinite ease-in-out",
@@ -2652,12 +2652,10 @@ export default function PlayerGame() {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        flexDirection: "column",
-                        gap: 1,
                         borderRadius: "12px",
                         textAlign: "center",
                         fontWeight: 800,
-                        fontSize: { xs: "1rem", md: "1.15rem" },
+                        fontSize: { xs: "2rem", md: "2.5rem" },
                         border: isSelected
                           ? "2px solid #22c55e"
                           : "1px solid rgba(255,255,255,0.3)",
@@ -2683,61 +2681,7 @@ export default function PlayerGame() {
                           : {},
                       }}
                     >
-                      {state.q.choiceImages?.[i] && (
-                        <Box
-                          component="img"
-                          src={state.q.choiceImages[i]}
-                          alt=""
-                          sx={{
-                            width: "100%",
-                            maxWidth: 180,
-                            height: { xs: 80, md: 110 },
-                            objectFit: "contain",
-                            borderRadius: "8px",
-                          }}
-                        />
-                      )}
-                      <Box
-                        sx={{
-                          width: "100%",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1.5,
-                        }}
-                      >
-                        <Box
-                          component="span"
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            flexShrink: 0,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderRadius: "50%",
-                            backgroundColor: isSelected ? "#065f46" : "#1E1B4B",
-                            color: "#fff",
-                            fontSize: "0.9rem",
-                            fontWeight: 800,
-                          }}
-                        >
-                          {i + 1}
-                        </Box>
-                        {choice && (
-                          <Box
-                            component="span"
-                            sx={{
-                              flex: 1,
-                              minWidth: 0,
-                              textAlign: "left",
-                              wordBreak: "break-word",
-                              overflowWrap: "anywhere",
-                            }}
-                          >
-                            {choice}
-                          </Box>
-                        )}
-                      </Box>
+                      {i + 1}
                     </Card>
                   );
                 })}
@@ -2795,7 +2739,7 @@ export default function PlayerGame() {
               <Typography variant="h5" sx={{ color: "#1E1B4B", fontWeight: 700, mb: 2 }}>
                 👋 The host has ended this session
               </Typography>
-              <Typography sx={{ color: "#e0e0ff", mb: 3 }}>
+              <Typography sx={{ color: "#1E1B4B", mb: 3 }}>
                 Thanks for playing!
               </Typography>
               <Link to="/join" style={{ color: "#FDE68A", fontWeight: 700 }}>

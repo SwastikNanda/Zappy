@@ -1556,7 +1556,7 @@ function createRoom(quizId) {
           className="z-10 w-full max-w-xl"
         >
           <Card
-            className="p-8 bg-white/10 backdrop-blur-lg border border-white/20 shadow-[0_0_25px_rgba(255,255,255,0.15)] text-center mt-20"
+            className="p-8 bg-white/80 backdrop-blur-lg border border-white/20 shadow-[0_0_25px_rgba(255,255,255,0.15)] text-center mt-20"
             sx={{ borderRadius: "22px" }}
           >
             {!currentQuestion && !gameOver && (
@@ -1868,9 +1868,9 @@ function createRoom(quizId) {
                 sx={{
                   py: 1.1,
                   borderRadius: "12px",
-                  color: "#fff",
-                  borderColor: "rgba(255,255,255,0.5)",
-                  "&:hover": { borderColor: "#fff", background: "rgba(255,255,255,0.1)" },
+                  color: "#1E1B4B",
+                  borderColor: "rgba(30,27,75,0.4)",
+                  "&:hover": { borderColor: "#1E1B4B", background: "rgba(30,27,75,0.08)" },
                 }}
               >
                 {gameOver ? "🏠 Host Another Quiz" : "🚪 Exit Room"}
