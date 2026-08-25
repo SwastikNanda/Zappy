@@ -1643,7 +1643,7 @@ function createRoom(quizId) {
                 <Typography
                   variant="h5"
                   sx={{
-                    color: "#fff",
+                    color: "#1E1B4B",
                     fontWeight: 700,
                     mb: 2,
                     px: 2,
