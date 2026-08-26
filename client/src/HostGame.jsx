@@ -1720,15 +1720,13 @@ function createRoom(quizId) {
                             borderRadius: "12px",
                             textAlign: "center",
                             fontWeight: 600,
-                            color: isCorrect ? "#065f46" : "#22236c",
+                            color: "#22236c",
                             border: isCorrect
                               ? "2px solid #22c55e"
                               : "1px solid rgba(255,255,255,0.3)",
-                            background: isCorrect
-                              ? "rgba(34,197,94,0.35)"
-                              : "rgba(255,255,255,0.15)",
+                            background: "rgba(255,255,255,0.15)",
                             boxShadow: isCorrect
-                              ? "0 0 18px rgba(34,197,94,0.6)"
+                              ? "0 0 20px rgba(34,197,94,0.6), 0 0 40px rgba(34,197,94,0.3)"
                               : "none",
                             display: "flex",
                             flexDirection: "column",
@@ -1742,14 +1740,16 @@ function createRoom(quizId) {
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${percentage}%` }}
-                              transition={{ duration: 0.6, ease: "easeOut" }}
+                              transition={{ duration: 0.8, ease: "easeOut" }}
                               style={{
                                 position: "absolute",
-                                inset: 0,
-                                width: 0,
+                                top: 0,
+                                left: 0,
+                                bottom: 0,
                                 background: isCorrect
-                                  ? "linear-gradient(90deg, rgba(34,197,94,0.3), rgba(34,197,94,0.45))"
-                                  : "linear-gradient(90deg, rgba(192,132,252,0.2), rgba(249,168,212,0.28))",
+                                  ? "rgba(34,197,94,0.45)"
+                                  : "linear-gradient(90deg, rgba(192,132,252,0.25), rgba(249,168,212,0.3))",
+                                borderRadius: "12px",
                                 zIndex: 0,
                               }}
                             />
@@ -1773,9 +1773,7 @@ function createRoom(quizId) {
                             <Box component="span" sx={{ fontWeight: 800, mr: 0.5 }}>
                               {i + 1}.
                             </Box>
-                            {isCorrect ? "✅ " : ""}
                             {choice}
-                            {questionEnded ? ` (${percentage}%)` : ""}
                           </Box>
                         </Box>
                       );
