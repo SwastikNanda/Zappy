@@ -2288,10 +2288,9 @@ export default function PlayerGame() {
     submitWith([index]);
   };
 
-  // --- Timer Bar with counter overlay ---
+  // --- Timer Bar with smooth CSS animation ---
   const TimerBar = () => {
     const total = state.q?.timeLimitSec || 20;
-    const pct = state.q ? Math.max(0, Math.min(100, (timer / total) * 100)) : 0;
     return (
       <Box
         sx={{
@@ -2305,16 +2304,18 @@ export default function PlayerGame() {
           mb: 3,
         }}
       >
-        <motion.div
-          animate={{
-            width: `${pct}%`,
-            background:
-              timer <= 5
-                ? "linear-gradient(90deg,#ef4444,#f97316,#fde68a)"
-                : "linear-gradient(90deg,#fde68a,#f9a8d4,#c084fc)",
+        <Box
+          sx={{
+            height: "100%",
+            borderRadius: "10px",
+            width: "100%",
+            background: timer <= 5
+              ? "linear-gradient(90deg,#ef4444,#f97316,#fde68a)"
+              : "linear-gradient(90deg,#fde68a,#f9a8d4,#c084fc)",
+            transformOrigin: "left",
+            transform: `scaleX(${Math.max(0, timer / total)})`,
+            transition: "transform 1s linear, background 0.5s ease",
           }}
-          transition={{ duration: 1, ease: "linear" }}
-          style={{ height: "100%", borderRadius: "10px" }}
         />
         <Typography
           sx={{
