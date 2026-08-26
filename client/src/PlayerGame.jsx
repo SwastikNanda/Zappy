@@ -2174,7 +2174,7 @@
 
 
 import { Box, Card, Typography, Button, Divider } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { useSocket } from "./useSocket";
 import { motion } from "framer-motion";
@@ -2288,54 +2288,14 @@ export default function PlayerGame() {
     submitWith([index]);
   };
 
-  // --- Timer Bar with smooth CSS animation ---
-  const TimerBar = () => {
-    const total = state.q?.timeLimitSec || 20;
-    return (
-      <Box
-        sx={{
-          position: "relative",
-          height: "28px",
-          width: "100%",
-          background: "rgba(255,255,255,0.2)",
-          borderRadius: "10px",
-          overflow: "hidden",
-          boxShadow: "0 0 15px rgba(255,255,255,0.3)",
-          mb: 3,
-        }}
-      >
-        <Box
-          sx={{
-            height: "100%",
-            borderRadius: "10px",
-            width: "100%",
-            background: timer <= 5
-              ? "linear-gradient(90deg,#ef4444,#f97316,#fde68a)"
-              : "linear-gradient(90deg,#fde68a,#f9a8d4,#c084fc)",
-            transformOrigin: "left",
-            transform: `scaleX(${Math.max(0, timer / total)})`,
-            transition: "transform 1s linear, background 0.5s ease",
-          }}
-        />
-        <Typography
-          sx={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: 800,
-            fontSize: "0.9rem",
-            color: "#1E1B4B",
-            textShadow: "0 0 6px rgba(255,255,255,0.7)",
-            pointerEvents: "none",
-          }}
-        >
-          ⏳ {timer}s
-        </Typography>
-      </Box>
-    );
-  };
+  // Timer animation key - resets when a new question starts
+  const timerTotal = state.q?.timeLimitSec || 20;
+  const [timerKey, setTimerKey] = useState(0);
+  useEffect(() => {
+    if (state.phase === "question" && state.q) {
+      setTimerKey((k) => k + 1);
+    }
+  }, [state.phase, state.q?.endsAt]);
 
   // If name not yet confirmed, show name entry screen
   if (!nameConfirmed) {
@@ -2552,7 +2512,52 @@ export default function PlayerGame() {
                   ? `Select ${state.q.correctCount || 2} options 👇`
                   : "Tap your answer 👇"}
               </Typography>
-              <TimerBar />
+
+              {/* Smooth timer bar */}
+              <Box
+                sx={{
+                  position: "relative",
+                  height: "28px",
+                  width: "100%",
+                  background: "rgba(255,255,255,0.2)",
+                  borderRadius: "10px",
+                  overflow: "hidden",
+                  boxShadow: "0 0 15px rgba(255,255,255,0.3)",
+                  mb: 3,
+                }}
+              >
+                <Box
+                  key={timerKey}
+                  sx={{
+                    height: "100%",
+                    borderRadius: "10px",
+                    width: "100%",
+                    background: "linear-gradient(90deg,#fde68a,#f9a8d4,#c084fc)",
+                    transformOrigin: "left",
+                    animation: `timerShrink ${timerTotal}s linear forwards`,
+                    "@keyframes timerShrink": {
+                      "0%": { transform: "scaleX(1)" },
+                      "100%": { transform: "scaleX(0)" },
+                    },
+                  }}
+                />
+                <Typography
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 800,
+                    fontSize: "0.9rem",
+                    color: "#1E1B4B",
+                    textShadow: "0 0 6px rgba(255,255,255,0.7)",
+                    pointerEvents: "none",
+                  }}
+                >
+                  ⏳ {timer}s
+                </Typography>
+              </Box>
 
               <Box
                 sx={{

@@ -1287,6 +1287,7 @@ export default function HostGame() {
   const [gameOver, setGameOver] = useState(false);
   const [timer, setTimer] = useState(0);
   const [timeLimit, setTimeLimit] = useState(20);
+  const [timerKey, setTimerKey] = useState(0);
   const navigate = useNavigate();
   const roomLink = `${window.location.origin}/play/${roomCode}`;
 
@@ -1402,6 +1403,7 @@ function createRoom(quizId) {
       setCorrectIndices([]);
       setTimeLimit(timeLimitSec || 20);
       setTimer(endsAt ? Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)) : (timeLimitSec || 20));
+      setTimerKey((k) => k + 1);
     });
     socket.on("question:end", ({ correctIndices, leaderboard, answerDistribution }) => {
       playTimeUpSound();
@@ -1675,16 +1677,18 @@ function createRoom(quizId) {
                     }}
                   >
                     <Box
+                      key={timerKey}
                       sx={{
                         height: "100%",
                         borderRadius: "10px",
                         width: "100%",
-                        background: timer <= 5
-                          ? "linear-gradient(90deg,#ef4444,#f97316,#fde68a)"
-                          : "linear-gradient(90deg,#fde68a,#f9a8d4,#c084fc)",
+                        background: "linear-gradient(90deg,#fde68a,#f9a8d4,#c084fc)",
                         transformOrigin: "left",
-                        transform: `scaleX(${Math.max(0, timer / (timeLimit || 20))})`,
-                        transition: "transform 1s linear, background 0.5s ease",
+                        animation: `timerShrink ${timeLimit || 20}s linear forwards`,
+                        "@keyframes timerShrink": {
+                          "0%": { transform: "scaleX(1)" },
+                          "100%": { transform: "scaleX(0)" },
+                        },
                       }}
                     />
                     <Typography
