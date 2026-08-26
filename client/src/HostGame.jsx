@@ -1375,7 +1375,6 @@ function createRoom(quizId) {
   setQuestionEnded(false);
   setAnswerDistribution([]);
   setCorrectIndices([]);
-  setTotalAnswered(0);
   setGameOver(false);
   setTimer(0);
 
@@ -1436,7 +1435,6 @@ function createRoom(quizId) {
     setQuestionEnded(false);
     setAnswerDistribution([]);
     setCorrectIndices([]);
-    setTotalAnswered(0);
     setGameOver(false);
     setTimer(0);
     setEditingQuiz(null);
