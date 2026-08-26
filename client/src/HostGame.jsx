@@ -1283,7 +1283,6 @@ export default function HostGame() {
   const [questionEnded, setQuestionEnded] = useState(false);
   const [answerDistribution, setAnswerDistribution] = useState([]);
   const [correctIndices, setCorrectIndices] = useState([]);
-  const [totalAnswered, setTotalAnswered] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [timer, setTimer] = useState(0);
   const [timeLimit, setTimeLimit] = useState(20);
@@ -1404,14 +1403,14 @@ function createRoom(quizId) {
       setTimeLimit(timeLimitSec || 20);
       setTimer(endsAt ? Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)) : (timeLimitSec || 20));
     });
-    socket.on("question:end", ({ correctIndices, leaderboard, answerDistribution, totalAnswered }) => {
+    socket.on("question:end", ({ correctIndices, leaderboard, answerDistribution }) => {
       playTimeUpSound();
       startLobbyMusic();
       setQuestionEnded(true);
       setTimer(0);
       setAnswerDistribution(answerDistribution || []);
       setCorrectIndices(correctIndices || []);
-      setTotalAnswered(totalAnswered || 0);
+
       if (leaderboard) setLeaderboard(leaderboard);
     });
     socket.on("game:over", ({ leaderboard }) => {
@@ -1708,11 +1707,17 @@ function createRoom(quizId) {
                   >
                     {currentQuestion.choices.map((choice, i) => {
                       const isCorrect = questionEnded && correctIndices.includes(i);
+                      const distribution = answerDistribution.find(
+                        (item) => item.choiceIndex === i
+                      );
+                      const percentage = distribution?.percentage ?? 0;
                       const img = currentQuestion.choiceImages && currentQuestion.choiceImages[i];
                       return (
                         <Box
                           key={i}
                           sx={{
+                            position: "relative",
+                            overflow: "hidden",
                             p: 2,
                             borderRadius: "12px",
                             textAlign: "center",
@@ -1735,12 +1740,30 @@ function createRoom(quizId) {
                             overflowWrap: "anywhere",
                           }}
                         >
+                          {questionEnded && (
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${percentage}%` }}
+                              transition={{ duration: 0.6, ease: "easeOut" }}
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                width: 0,
+                                background: isCorrect
+                                  ? "linear-gradient(90deg, rgba(34,197,94,0.3), rgba(34,197,94,0.45))"
+                                  : "linear-gradient(90deg, rgba(192,132,252,0.2), rgba(249,168,212,0.28))",
+                                zIndex: 0,
+                              }}
+                            />
+                          )}
                           {img && (
                             <Box
                               component="img"
                               src={img}
                               alt={`Option ${i + 1}`}
                               sx={{
+                                position: "relative",
+                                zIndex: 1,
                                 maxHeight: 140,
                                 maxWidth: "100%",
                                 borderRadius: "8px",
@@ -1748,76 +1771,19 @@ function createRoom(quizId) {
                               }}
                             />
                           )}
-                          <Box component="span">
+                          <Box component="span" sx={{ position: "relative", zIndex: 1 }}>
                             <Box component="span" sx={{ fontWeight: 800, mr: 0.5 }}>
                               {i + 1}.
                             </Box>
-                            {isCorrect ? "✅ " : ""}{choice}
+                            {isCorrect ? "✅ " : ""}
+                            {choice}
+                            {questionEnded ? ` (${percentage}%)` : ""}
                           </Box>
                         </Box>
                       );
                     })}
                   </Box>
                 )}
-              </Box>
-            )}
-
-            {/* Answer Distribution (shown after question ends) */}
-            {questionEnded && answerDistribution.length > 0 && (
-              <Box sx={{ mb: 3, textAlign: "left", px: 2 }}>
-                <Divider sx={{ mb: 2, borderColor: "rgba(255,255,255,0.2)" }} />
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#F9A8D4", mb: 1 }}>
-                  📊 Answer Distribution ({totalAnswered} answered)
-                </Typography>
-                {answerDistribution.map((item) => {
-                  const isCorrect = correctIndices.includes(item.choiceIndex);
-                  return (
-                    <Box key={item.choiceIndex} sx={{ mb: 1.5 }}>
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: isCorrect ? "#4ade80" : "#e0d6f0",
-                            fontWeight: isCorrect ? 700 : 400,
-                            wordBreak: "break-word",
-                            overflowWrap: "anywhere",
-                            pr: 1,
-                          }}
-                        >
-                          {isCorrect ? "✅ " : ""}
-                          {`Option ${item.choiceIndex + 1}`}
-                          {item.choiceText ? `: ${item.choiceText}` : ""}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: "#C084FC", fontWeight: 600 }}>
-                          {item.percentage}% ({item.count})
-                        </Typography>
-                      </Box>
-                      <Box
-                        sx={{
-                          width: "100%",
-                          height: "10px",
-                          borderRadius: "5px",
-                          background: "rgba(255,255,255,0.1)",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${item.percentage}%` }}
-                          transition={{ duration: 0.6, ease: "easeOut" }}
-                          style={{
-                            height: "100%",
-                            borderRadius: "5px",
-                            background: isCorrect
-                              ? "linear-gradient(90deg, #4ade80, #22c55e)"
-                              : "linear-gradient(90deg, #C084FC, #F9A8D4)",
-                          }}
-                        />
-                      </Box>
-                    </Box>
-                  );
-                })}
-                <Divider sx={{ mt: 2, borderColor: "rgba(255,255,255,0.2)" }} />
               </Box>
             )}
 

@@ -27,10 +27,10 @@ function Podium({ top3 }) {
             {m.place === 1 && (
               <Crown className="text-yellow-300 mb-1" size={26} />
             )}
-            <span className="text-white font-bold text-sm md:text-base text-center truncate w-full">
+            <span className="text-slate-800 font-bold text-sm md:text-base text-center truncate w-full">
               {player.name}
             </span>
-            <span className="text-white/80 text-xs md:text-sm mb-2">
+            <span className="text-slate-600 text-xs md:text-sm mb-2">
               {player.score}
             </span>
             <div
@@ -58,19 +58,19 @@ export default function Leaderboard({ leaderboard, podium = false }) {
       case 2:
         return "bg-gradient-to-r from-amber-600 to-orange-700";
       default:
-        return "bg-white/10";
+        return "bg-slate-100";
     }
   };
 
   const getRankTextColor = (rank) =>
-    rank <= 2 ? "text-slate-900" : "text-white";
+    rank <= 2 ? "text-slate-900" : "text-slate-800";
 
   if (podium) {
     const top3 = leaderboard.slice(0, 3);
     const rest = leaderboard.slice(3);
     return (
       <div className="w-full">
-        <h2 className="text-2xl font-bold text-center mb-6 text-white">
+        <h2 className="text-2xl font-bold text-center mb-6 text-slate-900 text-blue-600" colour="#1E1B4B">
           🏆 Leaderboard
         </h2>
         {top3.length > 0 && <Podium top3={top3} />}
@@ -82,7 +82,7 @@ export default function Leaderboard({ leaderboard, podium = false }) {
                 initial={{ opacity: 0, x: -50 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.08 }}
-                className="flex items-center justify-between p-3 rounded-lg shadow bg-white/10 text-white"
+                className="flex items-center justify-between p-3 rounded-lg shadow bg-slate-100 text-slate-900"
               >
                 <div className="flex items-center min-w-0 flex-1">
                   <span className="text-lg font-bold w-8 shrink-0">{index + 4}</span>
@@ -99,7 +99,7 @@ export default function Leaderboard({ leaderboard, podium = false }) {
 
   return (
     <div className="w-full">
-      <h2 className="text-2xl font-bold text-center mb-4 text-white">Leaderboard</h2>
+      <h2 className="text-2xl font-bold text-center mb-4 text-slate-900">Leaderboard</h2>
       <ul className="space-y-4">
         {leaderboard.map((player, index) => (
           <motion.li

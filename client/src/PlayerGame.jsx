@@ -2179,25 +2179,6 @@ import { useParams, useSearchParams, Link } from "react-router-dom";
 import { useSocket } from "./useSocket";
 import { motion } from "framer-motion";
 import Leaderboard from "./components/Leaderboard";
-import {
-  playJoinSound,
-  playQuestionStartSound,
-  playClickSound,
-  playSubmitSound,
-  playCorrectSound,
-  playWrongSound,
-  playTickSound,
-  playTimeUpSound,
-  playGameOverSound,
-} from "./utils/sounds";
-import {
-  startLobbyMusic,
-  startQuestionMusic,
-  setPanic,
-  stopMusic,
-  toggleMusicMuted,
-  isMusicMuted,
-} from "./utils/musicEngine";
 
 export default function PlayerGame() {
   const { code } = useParams();
@@ -2216,7 +2197,6 @@ export default function PlayerGame() {
   const [selectedRadioAnswer, setSelectedRadioAnswer] = useState(null);
   const [timer, setTimer] = useState(0);
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [musicMuted, setMusicMuted] = useState(isMusicMuted());
 
   const emojis = ["⚡", "🎯", "🎉", "🔥", "💡", "⭐", "🎮", "🥳"];
 
@@ -2225,14 +2205,10 @@ export default function PlayerGame() {
     socket.emit("player:join", { roomCode: code, name });
 
     const onLobby = ({ count }) => {
-      playJoinSound();
-      startLobbyMusic();
       setState((prev) => ({ ...prev, phase: "lobby", count }));
     };
 
     const onStart = (q) => {
-      playQuestionStartSound();
-      startQuestionMusic();
       setState((prev) => ({ ...prev, phase: "question", q }));
       setSelectedAnswers([]);
       setSelectedRadioAnswer(null);
@@ -2243,13 +2219,10 @@ export default function PlayerGame() {
 
     const tick = setInterval(() => setTimer((t) => {
       const next = Math.max(0, t - 1);
-      if (next > 0 && next <= 5) { playTickSound(); setPanic(true); }
-      if (next === 0 && t > 0) playTimeUpSound();
       return next;
     }), 1000);
 
     const onEnd = ({ correctIndices, leaderboard }) => {
-      startLobbyMusic();
       setState((prev) => ({
         ...prev,
         phase: "reveal",
@@ -2259,8 +2232,6 @@ export default function PlayerGame() {
     };
 
     const onOver = ({ leaderboard }) => {
-      playGameOverSound();
-      stopMusic();
       setState((prev) => ({ ...prev, phase: "over", leaderboard }));
     };
 
@@ -2268,7 +2239,6 @@ export default function PlayerGame() {
       setState((prev) => ({ ...prev, leaderboard }));
 
     const onClosed = () => {
-      stopMusic();
       setState((prev) => ({ ...prev, phase: "closed" }));
     };
 
@@ -2281,7 +2251,6 @@ export default function PlayerGame() {
 
     return () => {
       clearInterval(tick);
-      stopMusic();
       socket.off("lobby:update", onLobby);
       socket.off("question:start", onStart);
       socket.off("question:end", onEnd);
@@ -2293,7 +2262,6 @@ export default function PlayerGame() {
 
   const submitWith = (indices) => {
     if (hasSubmitted || !state.q) return;
-    playSubmitSound();
     socket.emit("player:answer", {
       roomCode: code,
       choiceIndices: indices,
@@ -2303,13 +2271,11 @@ export default function PlayerGame() {
 
   const handleCheckboxChange = (index) => {
     if (hasSubmitted) return;
-    playClickSound();
     const next = selectedAnswers.includes(index)
       ? selectedAnswers.filter((i) => i !== index)
       : [...selectedAnswers, index];
     setSelectedAnswers(next);
 
-    // Auto-submit once the allowed number of options has been selected
     const allowed = state.q?.correctCount || 1;
     if (next.length >= allowed) {
       submitWith(next);
@@ -2318,9 +2284,7 @@ export default function PlayerGame() {
 
   const handleRadioChange = (index) => {
     if (hasSubmitted) return;
-    playClickSound();
     setSelectedRadioAnswer(index);
-    // Single-answer questions submit immediately on selection
     submitWith([index]);
   };
 
@@ -2470,35 +2434,6 @@ export default function PlayerGame() {
         }
       `}
       </style>
-
-      {/* Background-music mute toggle */}
-      <Box
-        onClick={() => setMusicMuted(toggleMusicMuted())}
-        title={musicMuted ? "Unmute music" : "Mute music"}
-        sx={{
-          position: "fixed",
-          top: 16,
-          right: 16,
-          zIndex: 50,
-          cursor: "pointer",
-          width: 44,
-          height: 44,
-          borderRadius: "50%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "20px",
-          background: "rgba(255,255,255,0.15)",
-          backdropFilter: "blur(6px)",
-          border: "1px solid rgba(255,255,255,0.25)",
-          boxShadow: "0 0 12px rgba(255,255,255,0.2)",
-          userSelect: "none",
-          transition: "transform 0.15s",
-          "&:hover": { transform: "scale(1.1)" },
-        }}
-      >
-        {musicMuted ? "🔇" : "🔊"}
-      </Box>
 
       {emojis.map((emoji, i) => (
         <motion.div

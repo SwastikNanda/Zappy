@@ -64,10 +64,46 @@ socket.on("host:create_room", async ({ quizId }) => {
       const room = rooms.get(roomCode);
       if (!room) return io.to(socket.id).emit("error", { message: "Room not found" });
       const safeName = sanitizeName(name);
-      room.players.set(socket.id, { name: safeName, score: 0, answered: false });
+
+      // Check if this player was previously in the room (reconnection)
+      let existingPlayer = null;
+      for (const [sid, p] of room.players.entries()) {
+        if (p.name === safeName) {
+          existingPlayer = { sid, player: p };
+          break;
+        }
+      }
+
+      if (existingPlayer) {
+        // Remove old socket entry and re-add with new socket id, preserving score
+        room.players.delete(existingPlayer.sid);
+        room.players.set(socket.id, existingPlayer.player);
+      } else {
+        room.players.set(socket.id, { name: safeName, score: 0, answered: false, lastAnswer: [] });
+      }
+
       socket.join(roomCode);
       io.to(roomCode).emit("host:players_update", { players: Array.from(room.players.values()) });
       io.to(roomCode).emit("lobby:update", { count: room.players.size });
+
+      // If a question is currently active, send it to the reconnecting player
+      if (room.currentQ >= 0 && room.currentQ < room.quiz.questions.length && room.endsAt > Date.now()) {
+        const q = room.quiz.questions[room.currentQ];
+        const hasMultipleAnswers = q.correctIndices && q.correctIndices.length > 1;
+        const correctCount = q.correctIndices ? q.correctIndices.length : 1;
+        socket.emit("question:start", {
+          index: room.currentQ,
+          questionNumber: room.currentQ + 1,
+          totalQuestions: room.quiz.questions.length,
+          text: q.text,
+          choices: q.choices,
+          choiceImages: q.choiceImages || [],
+          endsAt: room.endsAt,
+          timeLimitSec: q.timeLimitSec || 20,
+          hasMultipleAnswers,
+          correctCount
+        });
+      }
     });
 
     socket.on("host:next_question", ({ roomCode }) => {
