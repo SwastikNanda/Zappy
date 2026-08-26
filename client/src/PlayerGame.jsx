@@ -2298,10 +2298,10 @@ export default function PlayerGame() {
           position: "relative",
           height: "28px",
           width: "100%",
-          background: "rgba(255,255,255,0.25)",
+          background: "rgba(255,255,255,0.2)",
           borderRadius: "10px",
           overflow: "hidden",
-          boxShadow: "0 0 15px rgba(255,255,255,0.4)",
+          boxShadow: "0 0 15px rgba(255,255,255,0.3)",
           mb: 3,
         }}
       >
@@ -2314,14 +2314,7 @@ export default function PlayerGame() {
                 : "linear-gradient(90deg,#fde68a,#f9a8d4,#c084fc)",
           }}
           transition={{ duration: 1, ease: "linear" }}
-          style={{
-            height: "100%",
-            borderRadius: "10px",
-            boxShadow:
-              timer <= 5
-                ? "0 0 25px rgba(239,68,68,0.8)"
-                : "0 0 20px rgba(255,255,255,0.8)",
-          }}
+          style={{ height: "100%", borderRadius: "10px" }}
         />
         <Typography
           sx={{
