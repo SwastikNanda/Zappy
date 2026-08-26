@@ -83,10 +83,11 @@ socket.on("host:create_room", async ({ quizId }) => {
       }
 
       socket.join(roomCode);
-      io.to(roomCode).emit("host:players_update", { players: Array.from(room.players.values()) });
-      io.to(roomCode).emit("lobby:update", { count: room.players.size });
 
-      // If a question is currently active, send it to the reconnecting player
+      // Notify host only about player list update
+      io.to(room.hostId).emit("host:players_update", { players: Array.from(room.players.values()) });
+
+      // If a question is currently active, send it to this player
       if (room.currentQ >= 0 && room.currentQ < room.quiz.questions.length && room.endsAt > Date.now()) {
         const q = room.quiz.questions[room.currentQ];
         const hasMultipleAnswers = q.correctIndices && q.correctIndices.length > 1;
@@ -103,6 +104,9 @@ socket.on("host:create_room", async ({ quizId }) => {
           hasMultipleAnswers,
           correctCount
         });
+      } else if (room.currentQ < 0) {
+        // Game hasn't started yet — send lobby update only to this player
+        socket.emit("lobby:update", { count: room.players.size });
       }
     });
 

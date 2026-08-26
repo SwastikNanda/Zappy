@@ -2186,26 +2186,53 @@ export default function PlayerGame() {
   const paramName = params.get("name");
   const socket = useSocket();
 
-  // If no name in URL, show a prompt before joining
-  const [playerName, setPlayerName] = useState(paramName || "");
-  const [nameConfirmed, setNameConfirmed] = useState(!!paramName);
+  // Restore name from localStorage or URL param
+  const storageKey = `zappy_player_${code}`;
+  const savedName = localStorage.getItem(storageKey) || "";
+  const initialName = paramName || savedName || "";
+
+  const [playerName, setPlayerName] = useState(initialName);
+  const [nameConfirmed, setNameConfirmed] = useState(!!initialName);
 
   const name = playerName || "Player";
+
+  // Persist name to localStorage when confirmed
+  useEffect(() => {
+    if (nameConfirmed && playerName) {
+      localStorage.setItem(storageKey, playerName);
+    }
+  }, [nameConfirmed, playerName, storageKey]);
 
   const [state, setState] = useState({ phase: "lobby", leaderboard: [] });
   const [selectedAnswers, setSelectedAnswers] = useState([]);
   const [selectedRadioAnswer, setSelectedRadioAnswer] = useState(null);
   const [timer, setTimer] = useState(0);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const joinedRef = useRef(false);
 
   const emojis = ["⚡", "🎯", "🎉", "🔥", "💡", "⭐", "🎮", "🥳"];
 
   useEffect(() => {
     if (!socket || !nameConfirmed) return;
-    socket.emit("player:join", { roomCode: code, name });
+
+    // Emit join only once per mount (avoid duplicate joins on re-render)
+    if (!joinedRef.current) {
+      socket.emit("player:join", { roomCode: code, name });
+      joinedRef.current = true;
+    }
+
+    // On reconnect, re-join to get current game state
+    const onReconnect = () => {
+      socket.emit("player:join", { roomCode: code, name });
+    };
+    socket.on("connect", onReconnect);
 
     const onLobby = ({ count }) => {
-      setState((prev) => ({ ...prev, phase: "lobby", count }));
+      // Only go to lobby if not already in a game phase
+      setState((prev) => {
+        if (prev.phase === "question" || prev.phase === "reveal") return prev;
+        return { ...prev, phase: "lobby", count };
+      });
     };
 
     const onStart = (q) => {
@@ -2251,6 +2278,7 @@ export default function PlayerGame() {
 
     return () => {
       clearInterval(tick);
+      socket.off("connect", onReconnect);
       socket.off("lobby:update", onLobby);
       socket.off("question:start", onStart);
       socket.off("question:end", onEnd);
