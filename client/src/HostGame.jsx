@@ -1254,6 +1254,7 @@ import { AnimatePresence } from "framer-motion";
 import QuizEditor from "./QuizEditor";
 import SavedQuizzes from "./SavedQuizzes";
 import { QRCodeCanvas } from "qrcode.react";
+import confetti from "canvas-confetti";
 import API from "./api";
 import Leaderboard from "./components/Leaderboard";
 import {
@@ -1418,6 +1419,15 @@ function createRoom(quizId) {
       setLeaderboard(leaderboard);
       setGameOver(true);
       setCurrentQuestion(null);
+      // Fire confetti burst
+      const duration = 4000;
+      const end = Date.now() + duration;
+      const frame = () => {
+        confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 } });
+        confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 } });
+        if (Date.now() < end) requestAnimationFrame(frame);
+      };
+      frame();
     });
   }
 
@@ -1610,7 +1620,7 @@ function createRoom(quizId) {
 
                 <Typography
                   variant="body2"
-                  sx={{ color: "rgba(255,255,255,0.85)", mb: 1 }}
+                  sx={{ color: "#1E1B4B", mb: 1 }}
                 >
                   📱 Scan to join
                 </Typography>
@@ -1770,6 +1780,24 @@ function createRoom(quizId) {
                                 objectFit: "contain",
                               }}
                             />
+                          )}
+                          {questionEnded && (
+                            <Typography
+                              sx={{
+                                position: "absolute",
+                                top: "50%",
+                                left: "50%",
+                                transform: "translate(-50%, -50%)",
+                                fontSize: "2.5rem",
+                                fontWeight: 900,
+                                color: "rgba(30,27,75,0.08)",
+                                zIndex: 0,
+                                pointerEvents: "none",
+                                userSelect: "none",
+                              }}
+                            >
+                              {percentage}%
+                            </Typography>
                           )}
                           <Box component="span" sx={{ position: "relative", zIndex: 1 }}>
                             <Box component="span" sx={{ fontWeight: 800, mr: 0.5 }}>
