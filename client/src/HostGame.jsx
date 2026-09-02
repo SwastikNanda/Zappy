@@ -1274,6 +1274,14 @@ import {
 } from "./utils/musicEngine";
 
 
+// Strips HTML tags/entities (e.g. from the rich-text quiz editor) so question
+// text renders as plain text and wraps normally instead of splitting words.
+function stripHtml(html) {
+  if (!html) return "";
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return doc.body.textContent || "";
+}
+
 export default function HostGame() {
   const socket = useSocket();
   const [roomCode, setRoomCode] = useState(null);
@@ -1660,8 +1668,9 @@ function createRoom(quizId) {
                     overflowWrap: "break-word",
                     wordBreak: "break-word",
                   }}
-                  dangerouslySetInnerHTML={{ __html: currentQuestion.text }}
-                />
+                >
+                  {stripHtml(currentQuestion.text)}
+                </Typography>
 
                 {/* Timer bar with counter overlay */}
                 {!questionEnded && (
