@@ -1657,7 +1657,7 @@ function createRoom(quizId) {
                     mb: 2,
                     px: 2,
                     whiteSpace: "normal",
-                    wordBreak: "normal",
+                    wordBreak: "break-word",
                     overflowWrap: "break-word",
                   }}
                   dangerouslySetInnerHTML={{ __html: currentQuestion.text }}
