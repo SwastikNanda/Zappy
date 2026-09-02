@@ -2,7 +2,7 @@
   "servers": {
     "abap-mcp": {
       "type": "stdio",
-      "command": "c:\\Users\\snanda\\.vscode\\extensions\\harieprasad.abap-mcp-1.3.8\\bin\\abap-mcp-windows.exe",
+      "command": "c:\\Users\\snanda\\.vscode\\extensions\\harieprasad.abap-mcp-1.4.3\\bin\\abap-mcp-windows.exe",
       "env": {
         "SAP_URL": "https://hostname:port",
         "SAP_USERNAME": "sap_username",

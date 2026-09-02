@@ -86,7 +86,7 @@ export default function Leaderboard({ leaderboard, podium = false }) {
               >
                 <div className="flex items-center min-w-0 flex-1">
                   <span className="text-lg font-bold w-8 shrink-0">{index + 4}</span>
-                  <span className="text-base font-semibold break-words [overflow-wrap:anywhere] min-w-0">{player.name}</span>
+                  <span className="text-base font-semibold break-words min-w-0">{player.name}</span>
                 </div>
                 <span className="text-lg font-bold shrink-0 ml-2">{player.score}</span>
               </motion.li>
@@ -111,7 +111,7 @@ export default function Leaderboard({ leaderboard, podium = false }) {
           >
             <div className="flex items-center min-w-0 flex-1">
               <span className="text-xl font-bold w-8 shrink-0">{index + 1}</span>
-              <span className="text-lg font-semibold break-words [overflow-wrap:anywhere] min-w-0">{player.name}</span>
+              <span className="text-lg font-semibold break-words min-w-0">{player.name}</span>
               {index < 3 && <Crown className="ml-2 shrink-0" size={20} />}
             </div>
             <span className="text-xl font-bold shrink-0 ml-2">{player.score}</span>

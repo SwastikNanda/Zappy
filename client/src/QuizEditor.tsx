@@ -1781,14 +1781,14 @@ export default function QuizEditor({ onSave, onSaveOnly, initialQuiz }: QuizEdit
               <div className="flex justify-between items-start gap-2">
                 <div className="min-w-0 flex-1">
                   <div
-                    className="break-words [overflow-wrap:anywhere]"
+                    className="break-words"
                     dangerouslySetInnerHTML={{ __html: q.text }}
                   />
                   <div className="mt-2 flex flex-wrap gap-2">
                     {q.choices.map((c, i) => (
                       <div
                         key={i}
-                        className={`flex items-center gap-1 rounded border px-2 py-1 text-sm break-words [overflow-wrap:anywhere] ${
+                        className={`flex items-center gap-1 rounded border px-2 py-1 text-sm break-words ${
                           q.correctIndices.includes(i)
                             ? "border-green-400 bg-green-50 text-green-700"
                             : "border-gray-200 text-gray-600"
