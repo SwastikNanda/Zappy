@@ -1657,7 +1657,8 @@ function createRoom(quizId) {
                     mb: 2,
                     px: 2,
                     wordBreak: "normal",
-                    overflowWrap: "break-word",
+                    overflowWrap: "normal",
+                    whiteSpace: "normal",
                   }}
                   dangerouslySetInnerHTML={{ __html: currentQuestion.text }}
                 />
@@ -1749,7 +1750,8 @@ function createRoom(quizId) {
                             alignItems: "center",
                             gap: 1,
                             wordBreak: "normal",
-                            overflowWrap: "break-word",
+                            overflowWrap: "normal",
+                            whiteSpace: "normal",
                           }}
                         >
                           {questionEnded && (

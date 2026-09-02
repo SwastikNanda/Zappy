@@ -2521,7 +2521,8 @@ export default function PlayerGame() {
                   fontWeight: 700,
                   color: "#1E1B4B",
                   wordBreak: "normal",
-                  overflowWrap: "break-word",
+                  overflowWrap: "normal",
+                  whiteSpace: "normal",
                   fontSize: { xs: "1.35rem", md: "1.75rem" },
                 }}
                 dangerouslySetInnerHTML={{ __html: state.q.text }}
