@@ -181,21 +181,32 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
+// Escape user input before using it in a regex
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Case-insensitive exact email match (covers accounts created before emails
+// were stored lowercased)
+const findByEmail = (email) =>
+  User.findOne({
+    email: { $regex: `^${escapeRegex(email)}$`, $options: "i" },
+  });
+
 // REGISTER
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, password, role } = req.body;
+    const email = String(req.body.email || "").trim();
 
     if (!name || !email || !password)
       return res.status(400).json({ message: "Missing fields" });
 
-    const exists = await User.findOne({ email });
+    const exists = await findByEmail(email);
     if (exists)
       return res.status(400).json({ message: "User already exists" });
 
     const user = await User.create({
       name,
-      email,
+      email: email.toLowerCase(),
       password,
       role: role || "player",
     });
@@ -220,9 +231,10 @@ router.post("/register", async (req, res) => {
 // LOGIN
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = String(req.body.email || "").trim();
 
-    const user = await User.findOne({ email });
+    const user = await findByEmail(email);
     if (!user)
       return res.status(401).json({ message: "Invalid email or password" });
 

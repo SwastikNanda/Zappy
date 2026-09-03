@@ -72,7 +72,9 @@ const userSchema = new mongoose.Schema(
       type: String, 
       required: true, 
       unique: true, 
-      index: true 
+      index: true,
+      trim: true,
+      lowercase: true 
     },
 
     // we store the hashed password here
