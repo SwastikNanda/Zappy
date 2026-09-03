@@ -2179,14 +2179,7 @@ import { useParams, useSearchParams, Link } from "react-router-dom";
 import { useSocket } from "./useSocket";
 import { motion } from "framer-motion";
 import Leaderboard from "./components/Leaderboard";
-
-// Strips HTML tags/entities (e.g. from the rich-text quiz editor) so question
-// text renders as plain text and wraps normally instead of splitting words.
-function stripHtml(html) {
-  if (!html) return "";
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  return doc.body.textContent || "";
-}
+import { stripHtml } from "./utils/text";
 
 export default function PlayerGame() {
   const { code } = useParams();

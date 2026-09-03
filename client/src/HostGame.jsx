@@ -1272,15 +1272,8 @@ import {
   toggleMusicMuted,
   isMusicMuted,
 } from "./utils/musicEngine";
+import { stripHtml, cleanText } from "./utils/text";
 
-
-// Strips HTML tags/entities (e.g. from the rich-text quiz editor) so question
-// text renders as plain text and wraps normally instead of splitting words.
-function stripHtml(html) {
-  if (!html) return "";
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  return doc.body.textContent || "";
-}
 
 export default function HostGame() {
   const socket = useSocket();
@@ -1666,7 +1659,7 @@ function createRoom(quizId) {
                     px: 2,
                     whiteSpace: "normal",
                     overflowWrap: "break-word",
-                    wordBreak: "break-word",
+                    wordBreak: "normal",
                   }}
                 >
                   {stripHtml(currentQuestion.text)}
@@ -1818,7 +1811,7 @@ function createRoom(quizId) {
                             <Box component="span" sx={{ fontWeight: 800, mr: 0.5 }}>
                               {i + 1}.
                             </Box>
-                            {choice}
+                            {cleanText(choice)}
                           </Box>
                         </Box>
                       );

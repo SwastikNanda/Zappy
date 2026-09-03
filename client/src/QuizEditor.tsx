@@ -1666,6 +1666,7 @@ export default function QuizEditor({ onSave, onSaveOnly, initialQuiz }: QuizEdit
           value={currentQuestion.text}
           onChange={handleEditorChange}
           modules={quillModules}
+          useSemanticHTML={false}
           placeholder="Type your question here..."
           style={{ marginBottom: "8px" }}
         />
